@@ -1,5 +1,4 @@
 #include "header.h"
-
 /********************************************************************/
 /************ gradient of the pairwise CL ****************/
 /********************************************************************/
@@ -394,6 +393,7 @@ void scalar_space(int *npts, int *ntime,double *coordt, double *maxtime,double *
                              {
                              ww[0]=1;ww[1]=1;ww[2]=1; ww[3]=1;
                              }*/
+                            //printf("npar:%d  g1 %f g2 %f g3 %f   gc %f gc %f\n",npar[0],grad[0],grad[1],grad[2],gradcor[0],gradcor[1]);
                             ww[0]=1;ww[1]=1;ww[2]=1; ww[3]=1;
                             for(kk=0;kk<npar[0];kk++)
                             {mom_cond[kk]=mom_cond[kk]+ww[kk]*grad[kk];
@@ -444,6 +444,7 @@ void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,in
     
     double   *rangex, *rangey;
     double *vv,*sdata,*xgrid,*ygrid,*scoordx,*scoordy;
+    //double *gradcor, *grad, *ww;
     double *gradcor, *grad, *ww;
     double **tot,*mom_cond,**vector_mean;    //matrix moments conditions
     double delta=0.0, deltax=0.0, deltay=0.0, dimwinx=0.0, dimwiny=0.0;
@@ -506,6 +507,12 @@ void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,in
     //Rprintf("%d\n",n_win);
     
     
+    /*int nsens=0;
+    double *sens,*sensmat;
+    nsens=*npar * (*npar+1)/2;
+    sens=(double *) Calloc(nsens,double);// One sensitive contribute
+    sensmat=(double *) Calloc(nsens,double);// sensitivity matrix*/
+    
     for(i=0;i<=numintx;i++)
     {
         for(j=0;j<=numinty;j++)
@@ -530,6 +537,7 @@ void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,in
                 
                 /******************************************/
                 /******************************************/
+                //for(l=0;l<nsens;l++) sensmat[l]=sensmat[l]-sens[l];
                 for(kk=0;kk<npar[0];kk++)
                 {
                     vector_mean[kk][nsub]=mom_cond[kk];
@@ -539,6 +547,13 @@ void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,in
             }
         }
     }
+    
+    
+    //printf("npar:%d, sill %f alfa_s %f alfa_s %f\n",npar[0],grad[2],gradcor[0],gradcor[1]);
+    //printf("npar:%d, g1 %f g2 %f g3 %f  gc %f gc %f\n",npar[0],grad[0],grad[1],grad[2],gradcor[0],gradcor[1]);
+    //printf("nsens:%d, 1 %f 2 %f 3 %f 4 %f 5 %f 6 %f\n",nsens,sensmat[0],sensmat[1],sensmat[2],sensmat[3],sensmat[4],sensmat[5]);
+    
+    //printf("nparc:%d npar:%d\n",*nparc,*npar);
     Free(scoordx);Free(scoordy);Free(sdata);Free(grad);Free(gradcor);Free(ww);
     tot= (double **) Calloc(npar[0],double *);
     for(i=0;i<npar[0];i++)
@@ -741,7 +756,6 @@ void SubSamp_space_DE_ocl(double *coordx, double *coordy,double *coordt, int *nc
     }
     Free(vector_mean);
     Free(tot);
-    
     return;
 }
 
@@ -2193,7 +2207,7 @@ void DoubleExpOCL(int *npts, int *ntime,double *coordt, double *maxtime,double *
     if (err != CL_SUCCESS)
     {
         size_t len;
-        char buffer[2048];
+        char buffer[2048*4];
         
         printf("Error: Failed to build program executable!\n%s\n", err_code(err));
         clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
@@ -2532,7 +2546,7 @@ void GneitingOCL(int *npts, int *ntime,double *coordt, double *maxtime,double *m
     if (err != CL_SUCCESS)
     {
         size_t len;
-        char buffer[2048];
+        char buffer[2048*4];
         
         printf("Error: Failed to build program executable!\n%s\n", err_code(err));
         clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
@@ -2873,7 +2887,7 @@ void create_binary_kernel(int *dev, char **fname)
     if (err != CL_SUCCESS)
     {
         size_t len;
-        char buffer[2048];
+        char buffer[10241*500];
         
         Rprintf("Error: Failed to build program executable!\n%s\n", err_code(err));
         clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);

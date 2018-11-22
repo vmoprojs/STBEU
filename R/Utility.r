@@ -113,7 +113,7 @@ checkpar <- function(fix,theta,cc)
 
 
 
-print.STBEUFit <- function(x,names,GPU, digits = max(3, getOption("digits") - 3), ...)
+print.STBEUFit <- function(x,names,GPU,varest, digits = max(3, getOption("digits") - 3), ...)
 {
   cat('\n=================================================================')
   if(x$convergence==0) cat('\nSuccessful convergence') else cat('\nConvergence may have failed')
@@ -123,6 +123,15 @@ print.STBEUFit <- function(x,names,GPU, digits = max(3, getOption("digits") - 3)
     res = x$par;names(res) = names
     cat('\nParameters:\n')
     print.default(res)
+    if(varest)
+    {
+      cat('\nStandard errors:\n')
+      stderr = x$stderr;names(stderr) = names
+      print.default(stderr)
+      cat('\nVariance-covariance matrix of the estimates:\n')
+      varcov = x$varcov;colnames(varcov) = names;rownames(varcov) = names
+      print.default(varcov)
+    }
   }
   cat('\n=================================================================\n')
 }

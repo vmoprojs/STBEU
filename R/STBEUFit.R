@@ -10,7 +10,7 @@
 ### Last change: 13/09/2017.
 ####################################################
 STBEUFit<-function(theta,fix,coords,times,cc,data,type_dist,maxdist,maxtime, winc_s,winstp_s,
-                       winc_t,winstp_t,subs,weighted,local=c(1,1),GPU=NULL)             
+                       winc_t,winstp_t,subs,weighted,local=c(1,1),GPU=NULL,varest = FALSE)             
 {
   path.parent <- getwd()
   model = cc
@@ -52,8 +52,26 @@ STBEUFit<-function(theta,fix,coords,times,cc,data,type_dist,maxdist,maxtime, win
             weighted=weighted,type_sub=type_sub,local = local, GPU = GPU,control=list(maxit=1000))
   setwd(path.parent)
   names = checkpar(fix=fix,theta=theta,cc=cc)
-  print.STBEUFit(x = res, names = names,GPU)
   
+  
+  if(varest==TRUE)
+  {
+    if(subs==1) type_sub="SubSamp_space"
+    if(subs==2) type_sub="SubSamp_time"
+    if(subs==3) type_sub="SubSamp_spacetime"
+    
+    varval <- varestfun(theta = res$par,fix = fix,coordx=coordx,coordy=coordy,ncoords=ncoords,
+    times=times,ntime=ntime,cc=cc,data=data,type_dist=type_dist,maxdist= maxdist,
+    maxtime=maxtime,winc_s=winc_s,winstp_s=winstp_s,winc_t=winc_t,winstp_t=winstp_t,
+    weighted=weighted,type_sub=type_sub,local = c(1,1), GPU = NULL)
+    
+    res$varval <- varval
+    res$varcov <- solve(varval)
+    res$stderr <- sqrt(diag(solve(varval)))
+  }
+  
+  # return(list(res = res, varval = varval,varcov = solve(varval)))
+  print.STBEUFit(x = res, names = names,GPU,varest)# OJO
   return(res)
 }
 
@@ -87,6 +105,12 @@ eucl_st_ocl<-function(theta,fix,coordx,coordy,ncoords,times,ntime,cc,data,type_d
   
   # if(setup$nuis[1]<0 | setup$nuis[2]<0 | setup$nuis[3]<0) print(setup$nuis)
   # print(type_sub)
+  # print(system.time(.C(type_sub,as.double(coordx), as.double(coordy), as.double(times),as.integer(ncoords),
+  #                  as.integer(ntime),as.integer(cc), as.double(data),as.integer(type_dist),as.double(maxdist),
+  #                  as.double(maxtime),as.integer(setup$npar),as.double(setup$parcor),as.integer(setup$nparc),
+  #                  as.double(setup$nuis),as.integer(setup$nparnuis),as.integer(setup$flagcor),as.integer(setup$flagnuis),
+  #                  vv=as.double(vari),as.double(winc_s), as.double(winstp_s),as.double(winc_t), as.double(winstp_t),
+  #                  mm=as.double(means),as.integer(weighted),as.integer(local),as.integer(GPU))))
   p=.C(type_sub,as.double(coordx), as.double(coordy), as.double(times),as.integer(ncoords),
        as.integer(ntime),as.integer(cc), as.double(data),as.integer(type_dist),as.double(maxdist),
        as.double(maxtime),as.integer(setup$npar),as.double(setup$parcor),as.integer(setup$nparc),
@@ -95,24 +119,10 @@ eucl_st_ocl<-function(theta,fix,coordx,coordy,ncoords,times,ntime,cc,data,type_d
        mm=as.double(means),as.integer(weighted),as.integer(local),as.integer(GPU))
   
   x=p$mm       #means vector
-  # print(theta)
-  # print(x=p$mm)
-  # if(cc == 1)
-  # {
-  #   if(p$mm[1] <0 | p$mm[2]<0 | p$mm[3]<0 ){
-  #     obj = 1e100
-  #     return (obj)}
-  # }
-  
-  # cat("\n\nAntes de: ",x,"\n\n")
   F=xpnd(p$vv) #cov matrix
-  #print(F)
-  #F <- matrix(c(-1,0,0,1),ncol=2)
   Fchol = MatDecomp(F,"cholesky")
   if(length(Fchol)==1)
   {
-    # cat("\n\n\nFchol don't work: ",x,"\n\n\n")
-    # print(F)
     Fchol = MatDecomp(F,"svd")
     inv = MatInv(Fchol,"svd")
     obj= crossprod(crossprod(inv, x), x)
@@ -123,8 +133,44 @@ eucl_st_ocl<-function(theta,fix,coordx,coordy,ncoords,times,ntime,cc,data,type_d
     inv=chol2inv(Fchol)  #inverse   
     obj= crossprod(crossprod(inv, x), x)# quadratic form
   }
-  # cat("\nOBJ: ",obj,"\n")
-  return(obj)  
-  
-  
+  return(obj)
 }
+
+
+
+varestfun<-function(theta,fix,coordx,coordy,ncoords,times,ntime,cc,data,type_dist,maxdist,maxtime,
+                      winc_s,winstp_s,winc_t,winstp_t,weighted,type_sub,local,GPU)
+  
+{
+  # print(theta)
+  setup=setting_param(cc,theta,fix)
+  if(cc == 1)
+  {
+    if(setup$parcor[1] <0 | setup$parcor[2]<0 | setup$nuis[3]<0 ){
+      obj = 1e100
+      return (obj)}
+  }
+  if(cc ==2)
+  {
+    if(setup$parcor[1] <0 |setup$parcor[1] >1 | setup$parcor[2]<0 | setup$parcor[2]>1| setup$parcor[3]<=0  | setup$parcor[4]<=0 
+       | setup$parcor[5]<0 |setup$parcor[5]>1 | setup$nuis[3]<0){
+      obj = 1e100
+      return (obj)}
+  }
+  
+  vari=double(setup$npar*0.5*(setup$npar-1)+setup$npar) ## vector of upper  triangular cov matrix (with diagonal)
+  
+  means=double(setup$npar)                               ## vector of means
+  
+  p=.C(type_sub,as.double(coordx), as.double(coordy), as.double(times),as.integer(ncoords),
+       as.integer(ntime),as.integer(cc), as.double(data),as.integer(type_dist),as.double(maxdist),
+       as.double(maxtime),as.integer(setup$npar),as.double(setup$parcor),as.integer(setup$nparc),
+       as.double(setup$nuis),as.integer(setup$nparnuis),as.integer(setup$flagcor),as.integer(setup$flagnuis),
+       vv=as.double(vari),as.double(winc_s), as.double(winstp_s),as.double(winc_t), as.double(winstp_t),
+       mm=as.double(means),as.integer(weighted),as.integer(local),as.integer(GPU))
+  
+  x=p$mm       #means vector
+  varval=xpnd(p$vv) #cov matrix
+  return(varval)
+}
+
