@@ -2021,8 +2021,9 @@ char * getKernelSource(char *filename)
     FILE *file = fopen(filename, "r");
     if (!file)
     {
-        fprintf(stderr, "Error: Could not open kernel source file\n");
-        exit(EXIT_FAILURE);
+        //fprintf(stderr, "Error: Could not open kernel source file\n");
+        printf("Error: Could not open kernel source file\n");
+        //exit(EXIT_FAILURE);
     }
     fseek(file, 0, SEEK_END);
     int len = ftell(file) + 1;
@@ -2031,8 +2032,9 @@ char * getKernelSource(char *filename)
     char *source = (char *)calloc(sizeof(char), len);
     if (!source)
     {
-        fprintf(stderr, "Error: Could not allocate memory for source string\n");
-        exit(EXIT_FAILURE);
+        //fprintf(stderr, "Error: Could not allocate memory for source string\n");
+        //exit(EXIT_FAILURE);
+        printf("Error: Could not allocate memory for source string\n");
     }
     fread(source, sizeof(char), len, file);
     fclose(file);

@@ -94,14 +94,14 @@ void parseArguments(int argc, char *argv[], cl_uint *deviceIndex)
         }
         printf("\n");
       }
-      exit(0);
+      //exit(0);
     }
     else if (!strcmp(argv[i], "--device"))
     {
       if (++i >= argc || !parseUInt(argv[i], deviceIndex))
       {
         printf("Invalid device index\n");
-        exit(1);
+        //exit(1);
       }
     }
     else if (!strcmp(argv[i], "--help") || !strcmp(argv[i], "-h"))
@@ -113,7 +113,7 @@ void parseArguments(int argc, char *argv[], cl_uint *deviceIndex)
       printf("      --list               List available devices\n");
       printf("      --device     INDEX   Select device at INDEX\n");
       printf("\n");
-      exit(0);
+      //exit(0);
     }
   }
 }

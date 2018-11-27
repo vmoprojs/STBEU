@@ -185,7 +185,7 @@ Víctor Morales Oñate, \email{victor.morales@uv.cl}, \url{https://sites.google.
 \examples{
 # "model=1" is Double Exponential and "model=2" is Gneiting
 rm(list=ls())
-require(CompRandFld)
+require(GeoModels)
 require(MCMCpack)
 require(STBEU)
 
@@ -221,29 +221,14 @@ if (model == 1) {
   sill=1
   param=list(nugget=nugget,mean=mean,scale_t=scale_t,scale_s=scale_s,sill=sill)  
   fixed=list(nugget=0)
-  fix=nugget
+  fix=c(nugget=nugget)
 }
-if (model == 2) {
-  # gneiting model
-  cov.model <-"gneiting"
-  cc=2
-  #####
-  mean=0
-  nugget=0
-  scale_s<-3/3
-  scale_t<-3/20
-  sill=1
-  power_s=1;power_t=1;sep=0.5
-  param=list(nugget=nugget,mean=mean,scale_t=scale_t,scale_s=scale_s,sill=sill,
-             power_s=power_s,power_t=power_t,sep=sep)  
-  fixed=list(nugget=0,power_s=power_s,power_t=power_t,sep=sep)   
-  fix=c(nugget, power_s, power_t,sep) 
-}
+
 ##################################################################
 set.seed(276)
 ##################################################################
 # Simulation of the  Gaussian random field:
-data <- RFsim(coordx=coords,coordt=times,corrmodel=cov.model, param=param)$data
+data <- GeoSim(coordx=coords,coordt=times,corrmodel=cov.model, param=param)$data
 ##################################################################
 mm=mean(c(data))
 vv=var(c(data))
@@ -264,14 +249,14 @@ winstp= 1###   1/lato_fin complete overlapping in space  1 "no" overlapping in s
 winc_t=4   ###  length of temporal window
 winstp_t=1 ###   0.5 half overlapping  1 "no" overlapping
 ###############################################
-theta=c(mm,vv,scale_s,scale_t)                #starting value  
+theta=c(mean = mm,sill = vv,scale_s = scale_s,scale_t =scale_t)                #starting value  
 weighted=0                                          #weigthed version  1=yes 0=no
 ### eucliden likelihood ################ 
 type_subs=1   ### type of subsampling  1=in space    2= in time  3 =spacetime
 tCPU = proc.time()
 GPU = 0;local = c(1,1)
 SubSampTimeEval(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,
-winstp,winc_t,winstp_t,type_subs,weighted,GPU = GPU, local = local)
+                winstp,winc_t,winstp_t,type_subs,weighted,GPU = GPU, local = local)
 
 }
 \keyword{Composite}

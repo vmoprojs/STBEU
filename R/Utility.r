@@ -50,23 +50,141 @@ DevOpenCL <- function()
 setting_param<-function(cc,theta,fix)
 {
   param <- c(theta,fix)
+  # if(!(all(names(param) %in% c("nugget","mean","scale_t","scale_s","sill")))) stop("All parameters (fix and theta) must be named")
   if(cc==1){      ### double exponential model
+    namespar = c("nugget","mean","scale_t","scale_s","sill")
     npar=length(theta)
     parcor=c(param["scale_s"],param["scale_t"])      #corr parameters
-    flagcor=c(1,1) 
     nuis=c(param["mean"],param["nugget"],param["sill"])   #mean, nugget, sill
-    #flagnuis=c(1,0,1)
-    flagnuis=c(0,0,1)
+    
+    flagcor <- c(0,0)
+    
+    if(any(names(theta)=="scale_s"))
+    {
+      flagcor[1] <- 1
+    }
+    if(any(names(fix)=="scale_s"))
+    {
+      flagcor[1] <- 0
+    }
+    if(any(names(theta)=="scale_t"))
+    {
+      flagcor[2] <- 1
+    }
+    if(any(names(fix)=="scale_t"))
+    {
+      flagcor[2] <- 0
+    }
+    # print(flagcor)
+    flagnuis <- c(0,0,0)
+    if( any(names(fix)=="mean") )
+    {
+      flagnuis[1] <- 0
+    }
+    if( any(names(theta)=="mean") )
+    {
+      flagnuis[1] <- 1
+    }
+    if( any(names(fix)=="nugget") )
+    {
+      flagnuis[2] <- 0
+    }
+    if( any(names(theta)=="nugget") )
+    {
+      flagnuis[2] <- 1
+    }
+    if( any(names(fix)=="sill") )
+    {
+      flagnuis[3] <- 0
+    }
+    if( any(names(theta)=="sill") )
+    {
+      flagnuis[3] <- 1
+    }
+    # print(flagnuis)
+    # flagnuis=c(0,0,1)
     nparc=sum(flagcor)  
     nparnuis=sum(flagnuis)
   }
   if(cc==2){       ### gneiting model
     npar=length(theta)
     parcor=c(param["power_s"],param["power_t"],param["scale_s"],param["scale_t"],param["sep"])     #corr parameters
-    flagcor=c(0,0,1,1,0) 
     nuis=c(param["mean"],param["nugget"],param["sill"])   #mean, nugget, sill
-    # flagnuis=c(1,0,1)
-    flagnuis=c(0,0,1) 
+    
+    flagcor=c(0,0,0,0,0) 
+    
+    if(any(names(theta)=="power_s"))
+    {
+      flagcor[1] <- 1
+    }
+    if(any(names(fix)=="power_s"))
+    {
+      flagcor[1] <- 0
+    }
+    if(any(names(theta)=="power_t"))
+    {
+      flagcor[2] <- 1
+    }
+    if(any(names(fix)=="power_t"))
+    {
+      flagcor[2] <- 0
+    }
+    if(any(names(theta)=="scale_s"))
+    {
+      flagcor[3] <- 1
+    }
+    if(any(names(fix)=="scale_s"))
+    {
+      flagcor[3] <- 0
+    }
+    if(any(names(theta)=="scale_t"))
+    {
+      flagcor[4] <- 1
+    }
+    if(any(names(fix)=="scale_t"))
+    {
+      flagcor[4] <- 0
+    }
+    if(any(names(theta)=="sep"))
+    {
+      flagcor[5] <- 1
+    }
+    if(any(names(fix)=="sep"))
+    {
+      flagcor[5] <- 0
+    }
+    # print(flagcor)
+    
+    
+    flagnuis=c(0,0,0) 
+    
+    if( any(names(fix)=="mean") )
+    {
+      flagnuis[1] <- 0
+    }
+    if( any(names(theta)=="mean") )
+    {
+      flagnuis[1] <- 1
+    }
+    if( any(names(fix)=="nugget") )
+    {
+      flagnuis[2] <- 0
+    }
+    if( any(names(theta)=="nugget") )
+    {
+      flagnuis[2] <- 1
+    }
+    if( any(names(fix)=="sill") )
+    {
+      flagnuis[3] <- 0
+    }
+    if( any(names(theta)=="sill") )
+    {
+      flagnuis[3] <- 1
+    }
+    
+    # flagcor=c(0,0,1,1,0) 
+    # flagnuis=c(0,0,1) 
     nparc=sum(flagcor)  
     nparnuis=sum(flagnuis)
   }

@@ -12,8 +12,26 @@
 STBEUFit<-function(theta,fix,coords,times,cc,data,type_dist,maxdist,maxtime, winc_s,winstp_s,
                        winc_t,winstp_t,subs,weighted,local=c(1,1),GPU=NULL,varest = FALSE)             
 {
+  # param <- c(theta,fix)
+  # print(match(names(param) ,c("nugget","mean","scale_t","scale_s","sill")) )
+  # print(match(names(param) , c("nugget","mean","scale_t","scale_s","sill")))
   path.parent <- getwd()
   model = cc
+  
+  if(model == 1)
+  {
+    param <- c(theta,fix)
+    filtro <- match(names(param) ,c("nugget","mean","scale_t","scale_s","sill"))
+    if(!filtro || length(filtro)==0) stop("All parameters (fix and theta) must be named")
+  }
+  
+  if(model == 2)
+  {
+    param <- c(theta,fix)
+    filtro <- match(names(param) , c("nugget","mean","scale_t","scale_s","sill","power_s","power_t","sep"))
+    # cat("Gnei",filtro,"\n")
+    if(!filtro || length(filtro)==0) stop("All parameters (fix and theta) must be named")
+  }
 
   nsub_t=floor((( length(times)-winc_t)/(winc_t*winstp_t)+1))
   if(subs==2 && nsub_t<=2)
@@ -81,10 +99,8 @@ eucl_st_ocl<-function(theta,fix,coordx,coordy,ncoords,times,ntime,cc,data,type_d
                       winc_s,winstp_s,winc_t,winstp_t,weighted,type_sub,local,GPU)
   
 {
-  # print(theta)
   setup=setting_param(cc,theta,fix)
-  # cat("length nuis",length(setup$nuis),"length parcor",length(setup$parcor),"\n")
-  # print(setup$parcor)
+  
   if(cc == 1)
   {
     if(setup$parcor[1] <0 | setup$parcor[2]<0 | setup$nuis[3]<0 ){
@@ -103,14 +119,6 @@ eucl_st_ocl<-function(theta,fix,coordx,coordy,ncoords,times,ntime,cc,data,type_d
   
   means=double(setup$npar)                               ## vector of means
   
-  # if(setup$nuis[1]<0 | setup$nuis[2]<0 | setup$nuis[3]<0) print(setup$nuis)
-  # print(type_sub)
-  # print(system.time(.C(type_sub,as.double(coordx), as.double(coordy), as.double(times),as.integer(ncoords),
-  #                  as.integer(ntime),as.integer(cc), as.double(data),as.integer(type_dist),as.double(maxdist),
-  #                  as.double(maxtime),as.integer(setup$npar),as.double(setup$parcor),as.integer(setup$nparc),
-  #                  as.double(setup$nuis),as.integer(setup$nparnuis),as.integer(setup$flagcor),as.integer(setup$flagnuis),
-  #                  vv=as.double(vari),as.double(winc_s), as.double(winstp_s),as.double(winc_t), as.double(winstp_t),
-  #                  mm=as.double(means),as.integer(weighted),as.integer(local),as.integer(GPU))))
   p=.C(type_sub,as.double(coordx), as.double(coordy), as.double(times),as.integer(ncoords),
        as.integer(ntime),as.integer(cc), as.double(data),as.integer(type_dist),as.double(maxdist),
        as.double(maxtime),as.integer(setup$npar),as.double(setup$parcor),as.integer(setup$nparc),
