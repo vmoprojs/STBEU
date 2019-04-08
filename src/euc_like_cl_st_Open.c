@@ -1,4 +1,328 @@
 #include "header.h"
+
+#define EPS DBL_EPSILON
+//#define EPS 1.0e-60
+
+//---------START WENDLAND FUNCTIONS-----------
+
+/* START Wendland covariance */
+
+/* integrand  in  generalized wendland function*/
+double int_gen(double x,double mu, double alpha,double lag,double supp)
+{
+    double res=0.0,y;
+    y=lag/supp;
+    res=R_pow(1-x,mu-1)*R_pow(x*x-y*y,alpha)/beta(2*alpha+1,mu);
+    return (res);///(R_pow(2,alpha-1)*gamma(alpha)*R_pow(supp,2*alpha)));
+}
+void integr_gen(double *x, int n, void *ex){
+    int i;double mu,alpha,beta,y;
+    mu =    ((double*)ex)[0];  //mu
+    alpha = ((double*)ex)[1];  //alpha
+    beta =     ((double*)ex)[2];  //csupp
+    y =     ((double*)ex)[3];  //h
+    for (i=0;i<n;i++) {x[i]=int_gen(x[i],mu,alpha,y,beta);}
+    return;
+}
+// function computing generalized wendland
+double wendintegral(double x, double *param) {
+    
+    double ex[4], lower, upper, epsabs, epsrel, result, abserr, *work;
+    int neval, ier, subdiv, lenw, last, *iwork;
+    subdiv = 100;
+    epsabs = R_pow(DOUBLE_EPS, 0.25);
+    epsrel = epsabs;
+    lenw = 4 * subdiv;           /* as instructed in WRE */
+    iwork =   (int *) Calloc(subdiv, int);  /* idem */
+    work = (double *) Calloc(lenw, double); /* idem */
+    ex[0] = param[0]; ex[1] = param[1]; ex[2] = param[2];ex[3]=x;
+    lower=x/param[2];
+    upper=1;
+    // Compute the integral
+    
+    if(x<=param[2]) {
+        Rdqags(integr_gen, (void *) &ex,
+               &lower, &upper, &epsabs, &epsrel, &result,
+               &abserr, &neval, &ier, &subdiv, &lenw, &last, iwork, work);
+        
+    }else   {result=0;}
+    Free(iwork);Free(work);
+    return(result);
+}
+/* generalized wendland function*/
+double CorFunW_gen(double lag,double R_power1,double smooth,double scale)  // mu alpha beta
+{
+    
+    //Rprintf("PARAM A: %f %f %f %f\n",lag,R_power1,smooth,scale);
+    double rho=0.0,x=0;
+    if(smooth==0) {
+        
+        x=lag/scale;
+        if(x<=1) rho=R_pow(1-x,R_power1);
+        else rho=0;
+        return(rho);
+    }
+    if(smooth==1) {
+        
+        x=lag/scale;
+        if(x<=1) rho=R_pow(1-x,R_power1+1)*(1+x*(R_power1+1));
+        else rho=0;
+        return(rho);
+    }
+    if(smooth==2) {
+        
+        x=lag/scale;
+        if(x<=1) rho=R_pow(1-x,R_power1+2)*(1+x*(R_power1+2)+x*x*(R_power1*R_power1 +4*R_power1 +3 )/3  );
+        else rho=0;
+        return(rho);
+    }
+    
+    x=lag;
+    double *param;
+    param=(double *) Calloc(3,double);
+    param[0]=R_power1;param[1]=smooth;param[2]=scale;  //mu,alpha //beta
+    
+    rho=wendintegral(x,param);
+    Free(param);
+    return(rho);
+}
+
+
+double wen_time(double *par, double h,double u)
+{
+    //Rprintf("%f %f %f %f %f %f\n",par[0],par[1],par[2],par[3],par[4],par[5]);
+   // Rprintf("smooth: %f\n",par[6]);
+    //0:power2_s 1:power_s  2:power2_t   3:scale_s     4:scale_t   5:sep 6:smooth
+    double R_power_s=2;
+    double R_power=par[0];
+    double R_power_t=par[2];
+    double scale_s=par[3];
+    double scale_t=par[4];
+    double sep=par[5];
+    double smooth=par[6];
+    //Rprintf("R_power_s: %f R_power: %f R_power_t: %f scale_s: %f scale_t: %f sep: %f smooth: %f \n",R_power_s,R_power,R_power_t,scale_s,scale_t,sep,smooth);
+    double arg=R_pow(1+R_pow(h/scale_s,R_power_s/2),-1/(R_power_s/2));
+    double rho=R_pow(arg,R_power)*CorFunW_gen(u,R_power_t,smooth,scale_t*R_pow(arg,sep));
+    return(rho);
+}
+
+
+
+/* END Wendland covariance */
+
+
+/* START DERIVATIVES Wendland covariance */
+
+// SCALE_S:
+double deri_scale_s_wen_time(double *par, double h,double u)
+{
+    double R_power=par[0];
+    double R_power_t=par[2];
+    double scale_s=par[3];
+    double scale_t=par[4];
+    double sep=par[5];
+    double smooth=par[6];
+    
+    //double EPS = 1.0e-10;
+    
+    double delta=sqrt(EPS)*scale_s;
+    
+    double *par1;
+    par1 = (double *) Calloc(7, double); /* idem */
+    // define vector par1
+    par1[0]=R_power;
+    par1[1]=2;
+    par1[2]=R_power_t;
+    par1[3]=scale_s + delta;
+    par1[4]=scale_t;
+    par1[5]=sep;
+    par1[6]=smooth;
+    double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
+    //Rprintf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
+    return(grad);
+}
+
+
+
+// SCALE_T:
+double deri_scale_t_wen_time(double *par, double h,double u)
+{
+    double R_power=par[0];
+    double R_power_t=par[2];
+    double scale_s=par[3];
+    double scale_t=par[4];
+    double sep=par[5];
+    double smooth=par[6];
+    
+    //double EPS = 1.0e-10;
+    
+    double delta=sqrt(EPS)*scale_t;
+    
+    double *par1;
+    par1 = (double *) Calloc(7, double); /* idem */
+    // define vector par1
+    par1[0]=R_power;
+    par1[1]=2;
+    par1[2]=R_power_t;
+    par1[3]=scale_s;
+    par1[4]=scale_t+ delta;
+    par1[5]=sep;
+    par1[6]=smooth;
+    double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
+    //Rprintf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
+    return(grad);
+}
+
+
+
+// SMOOTH:
+double deri_smooth_wen_time(double *par, double h,double u)
+{
+    double R_power=par[0];
+    double R_power_t=par[2];
+    double scale_s=par[3];
+    double scale_t=par[4];
+    double sep=par[5];
+    double smooth=par[6];
+    
+    //double EPS = 1.0e-10;
+    
+    double delta=sqrt(EPS)*smooth;
+    
+    double *par1;
+    par1 = (double *) Calloc(7, double); /* idem */
+    // define vector par1
+    par1[0]=R_power;
+    par1[1]=2;
+    par1[2]=R_power_t;
+    par1[3]=scale_s;
+    par1[4]=scale_t;
+    par1[5]=sep;
+    par1[6]=smooth+ delta;
+    double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
+    //Rprintf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
+    return(grad);
+}
+
+
+
+// SILL:
+double deri_sill_wen_time(double *par, double h,double u)
+{
+    double grad=wen_time(par,h,u);
+    return(grad);
+}
+
+
+
+// SEP:
+double deri_sep_wen_time(double *par, double h,double u)
+{
+    double R_power=par[0];
+    double R_power_t=par[2];
+    double scale_s=par[3];
+    double scale_t=par[4];
+    double sep=par[5];
+    double smooth=par[6];
+    
+    //double EPS = 1.0e-10;
+    
+    double delta=sqrt(EPS)*sep;
+    
+    double *par1;
+    par1 = (double *) Calloc(7, double); /* idem */
+    // define vector par1
+    par1[0]=R_power;
+    par1[1]=2;
+    par1[2]=R_power_t;
+    par1[3]=scale_s;
+    par1[4]=scale_t;
+    par1[5]=sep+ delta;
+    par1[6]=smooth;
+    double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
+    //Rprintf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
+    return(grad);
+}
+
+
+
+// R_power:
+double deri_R_power_wen_time(double *par, double h,double u)
+{
+    double R_power=par[0];
+    double R_power_t=par[2];
+    double scale_s=par[3];
+    double scale_t=par[4];
+    double sep=par[5];
+    double smooth=par[6];
+    
+    //double EPS = 1.0e-10;
+    
+    double delta=sqrt(EPS)*R_power;
+    
+    double *par1;
+    par1 = (double *) Calloc(7, double); /* idem */
+    // define vector par1
+    par1[0]=R_power+ delta;
+    par1[1]=2;
+    par1[2]=R_power_t;
+    par1[3]=scale_s;
+    par1[4]=scale_t;
+    par1[5]=sep;
+    par1[6]=smooth;
+    double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
+    //Rprintf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
+    return(grad);
+}
+
+
+
+// R_power_t:
+double deri_R_power_t_wen_time(double *par, double h,double u)
+{
+    double R_power=par[0];
+    double R_power_t=par[2];
+    double scale_s=par[3];
+    double scale_t=par[4];
+    double sep=par[5];
+    double smooth=par[6];
+    
+    //double EPS = 1.0e-10;
+    
+    double delta=sqrt(EPS)*R_power_t;
+    
+    double *par1;
+    par1 = (double *) Calloc(7, double); /* idem */
+    // define vector par1
+    par1[0]=R_power;
+    par1[1]=2;
+    par1[2]=R_power_t+ delta;
+    par1[3]=scale_s;
+    par1[4]=scale_t;
+    par1[5]=sep;
+    par1[6]=smooth;
+    double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
+    //Rprintf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
+    return(grad);
+}
+
+
+/* END DERIVATIVES Wendland covariance */
+
+
+//---------END WENDLAND FUNCTIONS-----------
+
+
+
+
+
+
+
+
+
+
+
+
 /********************************************************************/
 /************ gradient of the pairwise CL ****************/
 /********************************************************************/
@@ -110,61 +434,6 @@ double DGneiting_sc_s(double h,double u,double power_s,double power_t,
     return (a);
 }
 
-/*/ Derivatives with respect to the temporal scale parameter of the Gneiting correlation model:
-double DGneiting_sc_t(double h,double u, double R_power_s,double R_power_t,
-                      double scale_s,double scale_t,double sep)
-{
-    double arg=0.0,rho=0.0,a=0.0;
-    arg=1+R_pow(u/scale_t, R_power_t);
-    rho=exp(-R_pow(h/scale_s, R_power_s)/(R_pow(arg, 0.5*sep*R_power_s)))/arg;
-    if (arg) a= (R_power_t*R_pow(u/scale_t, R_power_t)*rho)/(scale_t*R_pow(arg,2))-( 0.5*R_power_t*R_power_s*sep*rho*R_pow(h/scale_s, R_power_s)*R_pow(u/scale_t, R_power_t)*R_pow(arg,-0.5*sep*R_power_s-2))/scale_t;
-    return(a);
-}
-// Derivatives with respect to the spatial scale parameter of the Gneiting correlation model:
-double DGneiting_sc_s(double h,double u,double R_power_s,double R_power_t,
-                      double scale_s,double scale_t,double sep)
-{
-    double arg=0.0,rho=0.0,a=0.0;
-    arg=1+R_pow(u/scale_t, R_power_t);
-    rho=exp(-R_pow(h/scale_s, R_power_s)/(R_pow(arg, 0.5*sep*R_power_s)))/arg;
-    a=(R_pow(h/scale_s, R_power_s)*R_power_s*rho*R_pow(arg,-0.5*R_power_s*sep-1))/scale_s;
-    return (a);
-}
-// Derivatives with respect to the separable parameter of the Gneiting correlation model:
-double DGneiting_sep(double h,double u, double R_power_s,double R_power_t,
-                     double scale_s,double scale_t,double sep)
-{
-    double a=0,arg=0,rho=0;
-    arg=1+R_pow(u/scale_t, R_power_t);
-    rho=exp(-R_pow(h/scale_s, R_power_s)*(R_pow(arg,- 0.5*sep*R_power_s)));
-    if(arg) a=0.5*R_pow(h/scale_s, R_power_s)*R_pow(arg,-0.5*sep*R_power_s-1)*R_power_s*rho*log(arg);
-    return(a);
-}
-// Derivatives with respect to spatial R_power of the Gneiting correlation model:
-double DGneiting_pw_s(double h,double u, double R_power_s,double R_power_t,
-                      double scale_s,double scale_t,double sep)
-{
-    double arg=0.0,rho=0.0,a=0.0;
-    arg=1+R_pow(u/scale_t, R_power_t);
-    rho=exp(-R_pow(h/scale_s, R_power_s)/(R_pow(arg, 0.5*sep*R_power_s)))/arg;
-    if(h && arg){a=(-R_pow(h/scale_s, R_power_s)*R_pow(arg,-0.5*sep*R_power_s)*log(h/scale_s) +
-                    0.5*R_pow(h/scale_s, R_power_s)*R_pow(arg,-0.5*sep*R_power_s)*sep*log(arg) )*rho;}
-    return(a);
-}
-
-// Derivatives with respect to temporal R_power of the Gneiting correlation model:
-double DGneiting_pw_t(double h,double u, double R_power_s,double R_power_t,
-                      double scale_s,double scale_t,double sep)
-{
-    double arg=0.0,rho=0.0,a=0.0;
-    arg=1+R_pow(u/scale_t, R_power_t);
-    rho=exp(-R_pow(h/scale_s, R_power_s)/(R_pow(arg, 0.5*sep*R_power_s)))/arg;
-    if(u){a=( -R_pow(u/scale_t, R_power_t)*log(u/scale_t)*rho+
-             0.5*rho*R_pow(h/scale_s, R_power_s)*R_power_s*sep*log(u/scale_t)*R_pow(arg,-0.5*sep*R_power_s))/arg;}
-    return(a) ;
-}*/
-
-
 // Derivatives with respect to scale of the Stable correlation model:
 double DStabSc(double lag, double power, double scale, double rho)
 {
@@ -199,7 +468,7 @@ double CorFunStable(double lag, double power, double scale)
 
 double CorFct(int *cormod, double h, double u, double *par)
 {
-    //Rprintf("%f %f %f %f %f\n",par[0],par[1],par[2],par[3],par[4]);
+    //Rprintf("%f %f %f %f %f %f %f\n",par[0],par[1],par[2],par[3],par[4],par[5],par[6]);
     double arg=0.0,  power_s=0.0, power_t=0.0;
     double rho=0.0, sep=0,  scale_s=0.0, scale_t=0;
     
@@ -220,6 +489,11 @@ double CorFct(int *cormod, double h, double u, double *par)
             arg=1+pow(u/scale_t, power_t);
             rho=exp(-(pow(h/scale_s, power_s))*pow(arg, -0.5*sep*power_s))/pow(arg,1);
             break;
+            
+        case 3:   //WendLand Time correlation model
+            rho=wen_time(par,h,u);
+            //Rprintf("rho: %f\n",rho);
+            break;
     }
     return rho;
 }
@@ -231,7 +505,8 @@ double CorFct(int *cormod, double h, double u, double *par)
 void GradCorrFct(double rho, int *cormod, int *flag,
                  double *grad, double h, double u,double *par)
 {
-    //Rprintf("%d %d %d %d %d\n",flag[0],flag[1],flag[2],flag[3],flag[4]);
+    //Rprintf("FLAGS: %d %d %d %d %d %d %d \n",flag[0],flag[1],flag[2],flag[3],flag[4],flag[5],flag[6]);
+    //Rprintf("PAR: %f %f %f %f %f %f %f\n",par[0],par[1],par[2],par[3],par[4],par[5],par[6]);
     int i=0;
     double power_s=0, power_t=0;
     double scale_s=0, scale_t=0, sep=0;
@@ -265,6 +540,24 @@ void GradCorrFct(double rho, int *cormod, int *flag,
             //separable parameter
             if(flag[4]==1)
                 grad[i]=DGneiting_sep(h,u,power_s,power_t,scale_s,scale_t,sep);
+            break;
+        case 3://WendLand time
+            //0:power2_s 1:power_s  2:power2_t   3:scale_s     4:scale_t   5:sep 6:smooth
+            if(flag[0]==1){//power2_s parameter
+                grad[i]=deri_R_power_wen_time(par, h,u);i++;}
+            if(flag[1]==1){//power_s parameter
+                grad[i]=0;i++;}
+            if(flag[2]==1){//power2_t parameter
+                grad[i]=deri_R_power_t_wen_time(par, h,u);i++;}
+            if(flag[3]==1){//scale_s parameter
+                grad[i]=deri_scale_s_wen_time(par, h,u);i++;}
+            if(flag[4]==1){//scale_t parameter
+                grad[i]=deri_scale_t_wen_time(par, h,u);i++;}
+            if(flag[5]==1){//sep parameter
+                grad[i]=deri_sep_wen_time(par, h,u);i++;}
+            //smooth parameter
+            if(flag[6]==1)
+                grad[i]=deri_smooth_wen_time(par, h,u);
             break;
     }
     
@@ -441,6 +734,7 @@ void scalar_space(int *npts, int *ntime,double *coordt, double *maxtime,double *
 
 void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,int *ntime,int *cormod,double *data,int *dist, double *maxdist,double *maxtime,int *npar,double *parcor,int *nparc,double *nuis,int *nparnuis, int *flagcor, int *flagnuis,double *vari,double *winc, double *winstp,double *a, double *b,double *block_mean,int *weigthed, int *local_wi, int *dev)
 {
+   
     
     double   *rangex, *rangey;
     double *vv,*sdata,*xgrid,*ygrid,*scoordx,*scoordy;
@@ -451,6 +745,8 @@ void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,in
     double winstx=winstp[0], winsty=winstp[0];
     int *npts, numintx=0, numinty=0;
     int n_win=0,kk=0,h=0,i=0,nsub,j=0,p=0,q=0,r,nmat;
+    
+    
     
     npts=(int *) R_alloc(1, sizeof(int));          //number of location sites in the subwindow
     rangex=(double *) R_alloc(2, sizeof(double));
@@ -466,6 +762,8 @@ void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,in
     // and scaling factor (lambda_n)
     deltax=rangex[1]-rangex[0];//  x window length
     deltay=rangey[1]-rangey[0];//  y window length
+    
+    //Rprintf("A. MIERDAAA\n");
     
     if(!winc[0])
     {
@@ -484,19 +782,27 @@ void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,in
     
     //Rprintf("X: %d  %f  %f  %f  %f  %f  %f\n",numintx,deltax,rangex[1],rangex[0],dimwinx,winstx,winstp[0]);
     //Rprintf("Y: %d  %f  %f  %f  %f  %f\n",numinty,deltay,rangey[1],rangey[0],dimwiny,winsty);
+    //Rprintf("B. MIERDAAA\n");
     
     xgrid=(double *) R_alloc(numintx, sizeof(double));
     ygrid=(double *) R_alloc(numinty, sizeof(double));
     
+    //Rprintf("C. MIERDAAA\n");
+    
+    //Rprintf("Y: %d  %d  %f  %f  %f  %f %f %f\n",numintx,numinty,rangex[1],rangex[0],rangey[1],rangey[0],winstx,winsty);
     SeqStep(rangex,numintx,winstx,xgrid);
     SeqStep(rangey,numinty,winsty,ygrid);
     
+    //Rprintf("D. MIERDAAA\n");
+    
     // matrix of means (one for each window)
+    
     vector_mean= (double **) Calloc(npar[0],double *);
     for(i=0;i<npar[0];i++)
     {
         vector_mean[i]=(double *) Calloc((numintx+1)*(numinty+1),double);
     }
+    //Rprintf("E. MIERDAAA\n");
     
     ww=(double *) Calloc(*npar,double);
     gradcor=(double *) Calloc(*nparc,double);
@@ -911,11 +1217,164 @@ void SubSamp_space_GN_ocl(double *coordx, double *coordy,double *coordt, int *nc
     return;
 }
 
+
+
+
+/*******************************************************************************************************************************************/
+
+void SubSamp_space_WE_ocl(double *coordx, double *coordy,double *coordt, int *ncoord,int *ntime,int *cormod,double *data,int *dist, double *maxdist,double *maxtime,int *npar,double *parcor,int *nparc,double *nuis,int *nparnuis, int *flagcor, int *flagnuis,double *vari,double *winc, double *winstp,double *a, double *b,double *block_mean,int *weigthed, int *local_wi, int *dev)
+{
+    double   *rangex, *rangey;
+    double *vv,*sdata,*xgrid,*ygrid,*scoordx,*scoordy;
+    double *gradcor, *grad, *ww;
+    double **tot,*mom_cond,**vector_mean;    //matrix moments conditions
+    double delta=0.0, deltax=0.0, deltay=0.0, dimwinx=0.0, dimwiny=0.0;
+    double winstx=winstp[0], winsty=winstp[0];
+    int *npts, numintx=0, numinty=0;
+    int n_win=0,kk=0,h=0,i=0,nsub,j=0,p=0,q=0,r,nmat;
+    
+    npts=(int *) R_alloc(1, sizeof(int));          //number of location sites in the subwindow
+    rangex=(double *) R_alloc(2, sizeof(double));
+    rangey=(double *) R_alloc(2, sizeof(double));
+    
+    scoordx=(double *) Calloc(*ncoord,double);
+    scoordy=(double *) Calloc(*ncoord,double);
+    sdata=(double *) Calloc(*ncoord * *ntime,double);
+    
+    Range(coordx,rangex,ncoord[0]);// range of the x-coordinate (min and max)
+    Range(coordy,rangey,ncoord[0]);// range of the y-coordinate  (min and max)
+    // set the sub-sampling window based on prototype unit window (R_0)
+    // and scaling factor (lambda_n)
+    deltax=rangex[1]-rangex[0];//  x window length
+    deltay=rangey[1]-rangey[0];//  y window length
+    
+    if(!winc[0])
+    {
+        delta=fmin(deltax,deltay);  // I set this rule if no constant
+        winc[0]=sqrt(delta)/2;
+    }
+    if(!winstp[0]) winstp[0]=0.5;   //proportion of the overlapping  0< winstp <=1, If winstp=0 then  winstp=0.5
+    //Rprintf("%f\n",winstp[0]);
+    dimwinx=winc[0] * sqrt(deltax);// sub-window x length depends on a constant: deafault??
+    dimwiny=winc[0] * sqrt(deltay);// sub-window y length depends on a constant: deafault??
+    
+    winstx=*winstp * dimwinx;     // x step is a  proportion of sub-window x length (deafult is 0.5)
+    winsty=*winstp * dimwiny;     // y step is a  proportion of sub-window y length (deafult is 0.5)
+    numintx=floor((deltax-dimwinx)/winstx+1);   //number of overlapping sub-windows is  numintx+1 * numinty+1
+    numinty=floor((deltay-dimwiny)/winsty+1);
+    
+    xgrid=(double *) R_alloc(numintx, sizeof(double));
+    ygrid=(double *) R_alloc(numinty, sizeof(double));
+    
+    SeqStep(rangex,numintx,winstx,xgrid);
+    SeqStep(rangey,numinty,winsty,ygrid);
+    
+    // matrix of means (one for each window)
+    vector_mean= (double **) Calloc(npar[0],double *);
+    for(i=0;i<npar[0];i++)
+    {
+        vector_mean[i]=(double *) Calloc((numintx+1)*(numinty+1),double);
+    }
+    
+    ww=(double *) Calloc(*npar,double);
+    gradcor=(double *) Calloc(*nparc,double);
+    grad=(double *) Calloc(*npar,double);
+    
+    nsub=0;
+    n_win=numintx*numinty;   //// number of windows
+    
+    for(i=0;i<=numintx;i++)
+    {
+        for(j=0;j<=numinty;j++)
+        {  // cycle for each block window
+            *npts=0;   // number of loc sites in the window
+            SetSampling_s(ncoord[0],ntime[0],coordx,coordy,data,npts,scoordx,scoordy,
+                          sdata,xgrid[i]+dimwinx,xgrid[i],ygrid[j]+dimwiny,ygrid[j]);//  create data and coordinates of the sub-windows
+            //  scoordx    scoordy are the spatial coords of the subwindow
+            // sdata the associated data
+            // npts number of loc sites in the window
+            if( (((xgrid[i]+dimwinx)<rangex[1])||is_equal(xgrid[i]+dimwinx,rangex[1]))&&     //excludin "half" windows
+               (((ygrid[j]+dimwiny))<rangey[1]||is_equal(ygrid[j]+dimwiny,rangey[1]))&&       //and windows with few loc sites
+               (npts[0]>5))
+            {
+                mom_cond=(double *) Calloc(*npar,double);
+                /******************************************/
+                /*computing gradient in the window*/
+                /******************************************/
+                WendOCL(npts,ntime,coordt,maxtime,maxdist,cormod,parcor,flagcor,flagnuis,npar,nuis,sdata,weigthed,mom_cond,dist,scoordx,scoordy,gradcor,grad,ww,local_wi,dev);
+                
+                /******************************************/
+                /******************************************/
+                for(kk=0;kk<npar[0];kk++)
+                {
+                    vector_mean[kk][nsub]=mom_cond[kk];
+                }  //vector means for each winndow
+                nsub=nsub+1;  // counting number of windows
+                Free(mom_cond);
+            }
+        }
+    }
+    Free(scoordx);Free(scoordy);Free(sdata);Free(grad);Free(gradcor);Free(ww);
+    tot= (double **) Calloc(npar[0],double *);
+    for(i=0;i<npar[0];i++)
+    {
+        tot[i]=(double *) Calloc(n_win,double);
+    }
+    //mean over blocks
+    for(q=0;q<n_win ;q++)
+    {
+        for(kk=0;kk<*npar;kk++)
+        {
+            block_mean[kk]= block_mean[kk]+ vector_mean[kk][q]/n_win;
+        }
+    }
+    for(q=0;q<n_win ;q++)
+    {
+        for(kk=0;kk<*npar;kk++)
+        {
+            tot[kk][q]=  vector_mean[kk][q]+block_mean[kk];
+        }
+    }
+    ////computing variance covarianmce matrix
+    nmat=0.5*npar[0]*(npar[0]-1)+npar[0];
+    vv=(double *) Calloc(n_win*nmat,double);
+    h=0;
+    for(r=0;r<n_win ;r++)
+    {
+        for(p=0;p< *npar;p++)
+        {
+            for(q=p;q< *npar;q++)
+            {
+                vv[h]=vv[h]+(tot[p][r])*(tot[q][r])/(n_win);
+                h++;
+            }
+        }
+    }
+    ////building upper triangular of the variance covarianmce matrix (summing over the matrices )
+    for(i=0;i<nmat;i++)
+    {
+        for(q=0;q<n_win ;q++)
+        {
+            vari[i]=vari[i]+vv[i+q*nmat];
+        }
+    }
+    Free(vv);
+    for(i=0;i<npar[0];i++)
+    {
+        Free(vector_mean[i]);Free(tot[i]);
+    }
+    Free(vector_mean);
+    Free(tot);
+    
+    return;
+}
 /*******************************************************************************************************************************************/
 
 
 void scalar_time(int *ncoord,int *nstime,double *sublagt,int *cormod,double *parcor,int *flagcor, double *gradcor,int *flagnuis, double *grad,int *npar,double *nuis, double *sdata,int *weigthed,double *maxtime, double *ww, double *mom_cond,int *dist, double *coordx, double *coordy,double *maxdist)
 {
+    //Rprintf("C: R_power_s: %f R_power: %f R_power_t: %f scale_s: %f scale_t: %f sep: %f smooth: %f \n",parcor[1],parcor[0],parcor[2],parcor[3],parcor[4],parcor[5],parcor[6]);
+    
     int l= 0, t=0, m=0, v=0,kk=0;
     double lags=0.0,lagt=0.0,rho=0.0;
     
@@ -951,6 +1410,7 @@ void scalar_time(int *ncoord,int *nstime,double *sublagt,int *cormod,double *par
                             ww[0]=1;ww[1]=1;ww[2]=1; ww[3]=1;
                             for(kk=0;kk<npar[0];kk++)
                             {
+                                //Rprintf("A: mom_cond[kk]: %f  grad[kk]: %f\n",mom_cond[kk],grad[kk]);
                                 mom_cond[kk]=mom_cond[kk]+ww[kk]*grad[kk];
                             }
                         }
@@ -983,6 +1443,7 @@ void scalar_time(int *ncoord,int *nstime,double *sublagt,int *cormod,double *par
                             ww[0]=1;ww[1]=1;ww[2]=1; ww[3]=1;
                             for(kk=0;kk<npar[0];kk++)
                             {
+                                //Rprintf("B: mom_cond[kk]: %f  grad[kk]: %f\n",mom_cond[kk],grad[kk]);
                                 mom_cond[kk]=mom_cond[kk]+ww[kk]*grad[kk];
                             }
                         }
@@ -1001,6 +1462,9 @@ void SubSamp_time(double *coordx, double *coordy,double *coordt, int *ncoord,int
     //Rprintf("mean: %f nugget: %f sill: %f scale_s: %f scale_t: %f\n",nuis[0],nuis[1],nuis[2],parcor[0],parcor[1]);
     //if(nuis[1]<0||nuis[2]<0 || parcor[0]<0 ||parcor[1]<0) {*res=1e100;  return;}
     //if(nuis[2]<0 ){return;}
+    
+    
+    //Rprintf("C: R_power_s: %f R_power: %f R_power_t: %f scale_s: %f scale_t: %f sep: %f smooth: %f \n",parcor[1],parcor[0],parcor[2],parcor[3],parcor[4],parcor[5],parcor[6]);
     
     double beta, *gradcor;
     double *vv,*ww,*sdata, *grad, *sublagt;
@@ -1072,6 +1536,7 @@ void SubSamp_time(double *coordx, double *coordy,double *coordt, int *ncoord,int
         /******************************************/
         for(kk=0;kk<npar[0];kk++)
         {
+            //Rprintf("mom_cond[kk]: %f\n",mom_cond[kk]);
             vector_mean[kk][i]=mom_cond[kk];
         }  //vector means for eac winndow
         Free(mom_cond);
@@ -1087,7 +1552,8 @@ void SubSamp_time(double *coordx, double *coordy,double *coordt, int *ncoord,int
         for(kk=0;kk<*npar;kk++)
         {
             block_mean[kk]= block_mean[kk]+ vector_mean[kk][q]/nsub;
-            /*if(block_mean[kk]<0)
+            //Rprintf("block_mean[kk]:%f\n",block_mean[kk]);
+            /*if(ISNAN(block_mean[kk]))
             {
                 Rprintf("block_mean[kk]: %f vector_mean[kk][q]: %f kk: %d\n",block_mean[kk],vector_mean[kk][q],kk);
             }*/
@@ -1381,6 +1847,132 @@ void SubSamp_time_GN_ocl(double *coordx, double *coordy,double *coordt, int *nco
     return;
 }
 
+
+
+/*******************************************************************************************************************************************/
+
+void SubSamp_time_WE_ocl(double *coordx, double *coordy,double *coordt, int *ncoord,int *ntime,int *cormod,double *data,int *dist, double *maxdist,double *maxtime,int *npar,double *parcor,int *nparc,double *nuis,int *nparnuis, int *flagcor, int *flagnuis,double *vari,double *a, double *b,double *winc, double *winstp,double *block_mean,int *weigthed, int *local_wi, int *dev)
+{
+    double beta, *gradcor;
+    double *vv,*ww,*sdata, *grad, *sublagt;
+    double **tot,*mom_cond,**vector_mean;    //matrix moments conditions
+    double step=coordt[0]-coordt[1];  // subsampling works in the regular temporal sampling setting
+    int nsub=0, nstime=0;
+    int kk=0,h=0,i=0,p=0,q=0,r,nmat;
+    //printf("step: %f\n",step);
+    //default sub window temporal length
+    if(!(*winc))
+    {
+        beta=CorFct(cormod,0,1,parcor);
+        *winc=R_pow(2*beta/(1-R_pow(beta,2)),(double) 2/3)*R_pow(*ntime*1.5,(double)1/3);
+        if(*winc<4*step) *winc=2*step;// if the length is too small
+        if(*winc>=*ntime) *winc=*ntime-step;
+    } // if the length is too big
+    //set the spatial-temporal windows:
+    int wint = (int) *winc;
+    //printf("wint: %d\n",wint);
+    if(*winstp==0) *winstp=wint; //defualt for the forward step:the minimum distance
+    //else *winstp=*winstp*wint;   //otherwise a proportion of the temporal window
+    sublagt=(double *) R_alloc(wint, sizeof(double));
+    sublagt[0]=step;
+    sdata=(double *)  Calloc(*ncoord*wint,double);
+    //set the temporal distances for the sub-sample:
+    for(i=0;i<wint;i++)
+    {
+        sublagt[i+1]=sublagt[i]+step;nstime++;
+        //printf("wint[%d]: %f\n",i,sublagt[i]);
+    }
+    nsub=floor((( (*ntime)-wint)/(wint*winstp[0])+1));
+    //printf("nsub: %d\n",nsub);
+    // vector of means for each window
+    vector_mean= (double **) Calloc(npar[0],double *);
+    for(i=0;i<npar[0];i++) vector_mean[i]=(double *) Calloc(nsub,double);
+    //start the sub-sampling procedure:
+    
+    ww=(double *) Calloc(*npar,double);
+    gradcor=(double *) Calloc(*nparc,double);
+    grad=(double *) Calloc(*npar,double);
+    //SetSampling_t(data,sdata,*ncoord,*ntime,wint,0);
+    //for(i=0;i<*ncoord* *ntime;i++){printf("sdata[%d]: %f\n",i,sdata[i]);}
+    
+    //printf("HASTA ");
+    for(i=0;i<nsub;i++)
+    {//loop for the number of sub-sampling:
+        mom_cond=(double *) Calloc(*npar,double);
+        // set the sub-sample of the data:
+        SetSampling_t(data,sdata,*ncoord,*ntime,wint,i);
+        
+        
+        /******************************************/
+        /*computing gradient in the window*/
+        /******************************************/
+        //scalar_time(ncoord,&nstime,sublagt,cormod,parcor,flagcor,gradcor,flagnuis,grad,npar,nuis,sdata,weigthed,maxtime,ww,mom_cond,dist,coordx,coordy,maxdist);
+        //printf("nstime\n",&nstime);
+       //Rprintf("A.MIERDAAAAA\n");
+        WendOCL(ncoord,&nstime,sublagt,maxtime,maxdist,cormod,parcor,flagcor,flagnuis,npar,nuis,sdata,weigthed,mom_cond,dist,coordx,coordy,gradcor,grad,ww,local_wi,dev);
+        
+        //printf("%f\t%f\t%f\t%f\n",mom_cond[0],mom_cond[1],mom_cond[2],mom_cond[3]);
+        
+        /******************************************/
+        /******************************************/
+        for(kk=0;kk<npar[0];kk++)
+        {
+            vector_mean[kk][i]=mom_cond[kk];
+        }  //vector means for eac winndow
+        Free(mom_cond);
+    }
+    
+    Free(sdata);Free(grad);Free(gradcor);Free(ww);
+    
+    tot= (double **) Calloc(npar[0],double *);
+    for(i=0;i<npar[0];i++)tot[i]=(double *) Calloc(nsub,double);
+    //mean over blocks
+    for(q=0;q<nsub ;q++)
+    {
+        for(kk=0;kk<*npar;kk++)
+        {
+            block_mean[kk]= block_mean[kk]+ vector_mean[kk][q]/nsub;;
+        }
+    }
+    for(q=0;q<nsub ;q++)
+    {
+        for(kk=0;kk<*npar;kk++)
+        {
+            tot[kk][q]=  vector_mean[kk][q]+block_mean[kk];
+        }
+    }
+    ////computing variance covarianmce matrix
+    nmat=0.5*npar[0]*(npar[0]-1)+npar[0];
+    vv=(double *) Calloc(nsub*nmat,double);
+    h=0;
+    for(r=0;r<nsub ;r++)
+    {
+        for(p=0;p< *npar;p++)
+        {
+            for(q=p;q< *npar;q++)
+            {
+                vv[h]=vv[h]+(tot[p][r])*(tot[q][r])/(nsub);h++;
+            }
+        }
+    }
+    ////building upper triangular of the variance covarianmce matrix (summing over the matrices )
+    for(i=0;i<nmat;i++)
+    {
+        for(q=0;q<nsub ;q++)
+        {
+            vari[i]=vari[i]+vv[i+q*nmat];
+        }
+    }
+    Free(vv);
+    for(i=0;i<npar[0];i++)
+    {
+        Free(vector_mean[i]);Free(tot[i]);
+    }
+    Free(vector_mean);
+    Free(tot);
+    
+    return;
+}
 /*******************************************************************************************************************************************/
 
 void scalar_spacetime(int *npts,int *nstime,double *sublagt,double *maxtime,int *cormod,double *parcor,int *flagcor, double *gradcor,int *flagnuis, double *grad,int *npar,double *nuis,double *s2data,int *weigthed, double *ww, double *mom_cond,double *maxdist,int *dist, double *scoordx, double *scoordy)
@@ -2013,6 +2605,187 @@ void SubSamp_spacetime_GN_ocl(double *coordx, double *coordy,double *coordt, int
 
 /*******************************************************************************************************************************************/
 
+void SubSamp_spacetime_WE_ocl(double *coordx, double *coordy,double *coordt, int *ncoord,int *ntime,int *cormod,double *data,int *dist, double *maxdist,double *maxtime,int *npar,double *parcor,int *nparc,double *nuis,int *nparnuis, int *flagcor, int *flagnuis,double *vari,double *winc, double *winstp,double *winc_t, double *winstp_t,double *block_mean,int *weigthed, int *local_wi, int *dev)
+
+
+{
+    double  beta, *rangex, *rangey;
+    double *vv,*sdata,*s2data,*xgrid,*ygrid,*scoordx,*scoordy,*sublagt;
+    double *gradcor,*grad,*ww;
+    double **tot,*mom_cond,**vector_mean;    //matrix moments conditions
+    double delta=0.0, deltax=0.0, deltay=0.0, dimwinx=0.0, dimwiny=0.0;
+    double winstx=winstp[0], winsty=winstp[0];
+    double step=coordt[0]-coordt[1];  // subsampling works in the regular temporal sampling setting
+    int *npts, numintx=0, numinty=0,nstime=0;
+    int n_win=0,kk=0,h=0,i=0,nsub,nsub_t=0,j=0,f=0,p=0,q=0,r,nmat;
+    
+    npts=(int *) R_alloc(1, sizeof(int));          //number of location sites in the subwindow
+    rangex=(double *) R_alloc(2, sizeof(double));
+    rangey=(double *) R_alloc(2, sizeof(double));
+    
+    scoordx=(double *) Calloc(*ncoord,double);
+    scoordy=(double *) Calloc(*ncoord,double);
+    sdata=(double *) Calloc(*ncoord * *ntime,double);
+    
+    Range(coordx,rangex,ncoord[0]);// range of the x-coordinate (min and max)
+    Range(coordy,rangey,ncoord[0]);// range of the y-coordinate  (min and max)
+    // set the sub-sampling window based on prototype unit window (R_0)
+    // and scaling factor (lambda_n)
+    deltax=rangex[1]-rangex[0];//  x window length
+    deltay=rangey[1]-rangey[0];//  y window length
+    if(!winc[0])
+    {
+        delta=fmin(deltax,deltay);  // I set this rule if no constant
+        winc[0]=sqrt(delta)/2;
+    }
+    if(!winstp[0]) winstp[0]=0.5;   //proportion of the overlapping  0< winstp <=1
+    //Rprintf("%f\n",winstp[0]);
+    dimwinx=winc[0] * sqrt(deltax);// sub-window x length depends on a constant: deafault??
+    dimwiny=winc[0] * sqrt(deltay);// sub-window y length depends on a constant: deafault??
+    
+    winstx=*winstp * dimwinx;     // x step is a  proportion of sub-window x length (deafult is 0.5)
+    winsty=*winstp * dimwiny;     // y step is a  proportion of sub-window y length (deafult is 0.5)
+    numintx=floor((deltax-dimwinx)/winstx+1);   //number of overlapping sub-windows is  numintx+1 * numinty+1
+    numinty=floor((deltay-dimwiny)/winsty+1);
+    
+    xgrid=(double *) R_alloc(numintx, sizeof(double));
+    ygrid=(double *) R_alloc(numinty, sizeof(double));
+    
+    SeqStep(rangex,numintx,winstx,xgrid);
+    SeqStep(rangey,numinty,winsty,ygrid);
+    
+    //default sub window temporal length
+    if(!(*winc_t))
+    {
+        beta=CorFct(cormod,0,1,parcor);
+        *winc_t=R_pow(2*beta/(1-R_pow(beta,2)),(double) 2/3)*R_pow(*ntime*1.5,(double)1/3);
+        if(*winc_t<4*step) *winc_t=2*step;// if the length is too small
+        if(*winc_t>=*ntime) *winc_t=*ntime-step;} // if the length is too big
+    //set the spatial-temporal windows:
+    int wint = (int) *winc_t;
+    if(*winstp_t==0) *winstp_t=wint; //defualt for the forward step:the minimum distance
+    //else *winstp=*winstp*wint;   //otherwise a proportion of the temporal window
+    sublagt=(double *) R_alloc(wint, sizeof(double));
+    sublagt[0]=step;
+    
+    s2data=(double *)  Calloc(*ncoord*wint,double);
+    //set the temporal distances for the sub-sample:
+    for(i=0;i<wint;i++)
+    {
+        sublagt[i+1]=sublagt[i]+step;nstime++;
+    }
+    nsub_t=floor(((*ntime-wint)/(wint*winstp_t[0])+1));
+    
+    
+    // vector of means for each window
+    vector_mean= (double **) Calloc(npar[0],double *);
+    for(i=0;i<npar[0];i++)
+    {
+        vector_mean[i]=(double *) Calloc((numintx+1)*(numinty+1)*nsub_t,double);
+    }
+    
+    ww=(double *) Calloc(*npar,double);
+    gradcor=(double *) Calloc(*nparc,double);
+    grad=(double *) Calloc(*npar,double);
+    
+    nsub=0;
+    n_win=numintx*numinty;
+    for(i=0;i<=numintx;i++)
+    {
+        for(j=0;j<=numinty;j++)
+        {
+            // cycle for each block∫∫
+            *npts=0;   // number of points in the block
+            SetSampling_s(ncoord[0],ntime[0],coordx,coordy,data,npts,scoordx,scoordy,sdata,xgrid[i]+dimwinx,xgrid[i],ygrid[j]+dimwiny,ygrid[j]);//  create data and coordinates of the sub-windows
+            //  scoordx    scoordy are the spatial coords of the subwindow
+            // sdata the associated data
+            // npts number of loc sites in the window
+            if( (((xgrid[i]+dimwinx)<rangex[1])||is_equal(xgrid[i]+dimwinx,rangex[1]))&&     //le mezze finestre sono escluse.
+               (((ygrid[j]+dimwiny))<rangey[1]||is_equal(ygrid[j]+dimwiny,rangey[1]))&&       //Anche le finestre che hanno "pochi" punti(griglia irregolare)
+               (npts[0]>5))
+            {
+                for(f=0;f<nsub_t;f++)
+                {//loop for the number of sub-sampling:
+                    // set the sub-sample of the data:
+                    SetSampling_t(sdata,s2data,npts[0],*ntime,wint,f);
+                    mom_cond=(double *) Calloc(*npar,double);
+                    /******************************************/
+                    /*computing gradient in the window*/
+                    /******************************************/
+                    
+                    WendOCL(npts,&nstime,sublagt,maxtime,maxdist,cormod,parcor,flagcor,flagnuis,npar,nuis,s2data,weigthed,mom_cond,dist,scoordx,scoordy,gradcor,grad,ww,local_wi,dev);
+                    
+                    /******************************************/
+                    /******************************************/
+                    for(kk=0;kk<npar[0];kk++)
+                    {
+                        vector_mean[kk][nsub]=mom_cond[kk];
+                    }  //vector means for eac winndow
+                    nsub=nsub+1;
+                    Free(mom_cond);
+                }
+            }
+        }
+    }
+    
+    Free(scoordx);Free(scoordy);Free(sdata);Free(s2data);Free(grad);Free(gradcor);Free(ww);
+    tot= (double **) Calloc(npar[0],double *);
+    for(i=0;i<npar[0];i++)
+    {
+        tot[i]=(double *) Calloc(nsub,double);
+    }
+    
+    //mean over blocks
+    for(q=0;q<nsub;q++)
+    {
+        for(kk=0;kk<*npar;kk++)
+        {
+            block_mean[kk]= block_mean[kk]+ vector_mean[kk][q]/nsub;
+        }
+    }
+    for(q=0;q<nsub ;q++)
+    {
+        for(kk=0;kk<*npar;kk++)
+        {
+            tot[kk][q]=  vector_mean[kk][q]+block_mean[kk];
+        }
+    }
+    ////computing variance covarianmce matrix
+    nmat=0.5*npar[0]*(npar[0]-1)+npar[0];
+    vv=(double *) Calloc(nsub*nmat,double);
+    h=0;
+    for(r=0;r<nsub ;r++)
+    {
+        for(p=0;p< *npar;p++)
+        {
+            for(q=p;q< *npar;q++)
+            {
+                vv[h]=vv[h]+(tot[p][r])*(tot[q][r])/(nsub);
+                h++;
+            }
+        }
+    }
+    ////building upper triangular of the variance covarianmce matrix (summing over the matrices )
+    for(i=0;i<nmat;i++)
+    {
+        for(q=0;q<nsub ;q++)
+        {
+            vari[i]=vari[i]+vv[i+q*nmat];
+        }
+    }
+    Free(vv);
+    for(i=0;i<npar[0];i++)
+    {
+        Free(vector_mean[i]);Free(tot[i]);
+    }
+    Free(vector_mean);
+    Free(tot);
+    
+    return;
+}
+
+/*******************************************************************************************************************************************/
+
 
 // OPEN CL ///
 
@@ -2098,6 +2871,8 @@ void DoubleExpOCL(int *npts, int *ntime,double *coordt, double *maxtime,double *
     int_par[10] = nparc;
     int_par[11] = nparnuis;
     int_par[12] = cormod[0];
+    
+    
     
     dou_par[0] = maxtime[0];
     dou_par[1] = maxdist[0];
@@ -2201,9 +2976,33 @@ void DoubleExpOCL(int *npts, int *ntime,double *coordt, double *maxtime,double *
     commands = clCreateCommandQueue(context, device, 0, &err);
     checkError(err, "Creating command queue");
     // Create the compute program from the source buffer
-    char *kernelsource = getKernelSource("DouExp.cl");
-    program = clCreateProgramWithSource(context, 1, (const char **) & kernelsource, NULL, &err);
-    checkError(err, "Creating program");
+    //char *kernelsource = getKernelSource("DouExp.cl");
+    //program = clCreateProgramWithSource(context, 1, (const char **) & kernelsource, NULL, &err);
+    //checkError(err, "Creating program");
+    
+    
+    FILE *fp;
+    size_t binary_size;
+    char *binary_buf;
+    cl_int binary_status;
+    
+    fp = fopen("DouExp.cl.bin", "r");
+    if (!fp) {
+        Rprintf("Failed to load kernel.\n");
+    }
+    binary_buf = (char *)malloc(MAX_BINARY_SIZE);
+    binary_size = fread(binary_buf, 1, MAX_BINARY_SIZE, fp);
+    fclose(fp);
+    
+    program = clCreateProgramWithBinary(
+                                        context, 1, &device, (const size_t *)&binary_size,
+                                        (const unsigned char **)&binary_buf, &binary_status, &err
+                                        );
+    free(binary_buf);
+    
+    
+    
+    
     // Build the program
     err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
     if (err != CL_SUCCESS)
@@ -2540,9 +3339,31 @@ void GneitingOCL(int *npts, int *ntime,double *coordt, double *maxtime,double *m
     commands = clCreateCommandQueue(context, device, 0, &err);
     checkError(err, "Creating command queue");
     // Create the compute program from the source buffer
-    char *kernelsource = getKernelSource("Gneiting.cl");
-    program = clCreateProgramWithSource(context, 1, (const char **) & kernelsource, NULL, &err);
-    checkError(err, "Creating program");
+    //char *kernelsource = getKernelSource("Gneiting.cl");
+    //program = clCreateProgramWithSource(context, 1, (const char **) & kernelsource, NULL, &err);
+    //checkError(err, "Creating program");
+    
+    FILE *fp;
+    size_t binary_size;
+    char *binary_buf;
+    cl_int binary_status;
+    
+    fp = fopen("Gneiting.cl.bin", "r");
+    if (!fp) {
+        Rprintf("Failed to load kernel.\n");
+    }
+    binary_buf = (char *)malloc(MAX_BINARY_SIZE);
+    binary_size = fread(binary_buf, 1, MAX_BINARY_SIZE, fp);
+    fclose(fp);
+    
+    program = clCreateProgramWithBinary(
+                                        context, 1, &device, (const size_t *)&binary_size,
+                                        (const unsigned char **)&binary_buf, &binary_status, &err
+                                        );
+    free(binary_buf);
+    
+    
+    
     // Build the program
     err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
     if (err != CL_SUCCESS)
@@ -2722,6 +3543,381 @@ void GneitingOCL(int *npts, int *ntime,double *coordt, double *maxtime,double *m
 }
 
 
+void WendOCL(int *npts, int *ntime,double *coordt, double *maxtime,double *maxdist,int *cormod, double *parcor,int *flagcor,int *flagnuis,int *npar,double *nuis,double *data,int *weigthed, double *mom_cond, int *dist, double *coordx,double *coordy,double *gradcor,double  *grad, double *ww,int *local_wi, int *dev)
+{
+    
+    
+    
+    // Setting data and params for sclar_space function
+    double *h_x,*h_y,*h_data, *h_t;
+    h_x = (double *) R_alloc(npts[0], sizeof(double));
+    h_y = (double *) R_alloc(npts[0], sizeof(double));
+    h_data = (double *) R_alloc(npts[0]*ntime[0], sizeof(double));
+    h_t = (double *) R_alloc(ntime[0], sizeof(double));
+    
+    h_x = coordx;
+    h_y = coordy;
+    h_data = data;
+    h_t = coordt;
+    
+    
+    int i;
+    int nparc=0, nparnuis=0;
+    int *int_par;
+    double *dou_par; // objects to pass int and double parametes to the kernel function
+    //int_par = (int*)calloc(1+1+2+3+1+1+1+1+1, sizeof(int));//length sum of: npts+ntime+flagcor+flagnuis+npar+weigthed+dist+nparc+nparnuis+cormod
+    //dou_par = (double*)calloc(1+1+2+3, sizeof(int));//length sum of: maxtime+maxdist+parcor+nuis
+    
+    
+    
+    for(i =0; i<5;i++){nparc += flagcor[i];}
+    for(i =0; i<3;i++){nparnuis += flagnuis[i];}
+    int_par = (int*)calloc((32), sizeof(int));
+    dou_par = (double*)calloc((32), sizeof(double));
+    
+    //printf("NPARC:%d\tNPARNUIS:%d\n",nparc,nparnuis);
+    
+    int_par[0] = npts[0];
+    int_par[1] = ntime[0];
+    int_par[2] = flagcor[0];
+    int_par[3] = flagcor[1];
+    int_par[4] = flagcor[2];
+    int_par[5] = flagcor[3];
+    int_par[6] = flagcor[4];
+    int_par[7] = flagnuis[0];
+    int_par[8] = flagnuis[1];
+    int_par[9] = flagnuis[2];
+    int_par[10] = npar[0];//npar
+    int_par[11] = weigthed[0];
+    int_par[12] = dist[0];
+    int_par[13] = nparc;
+    int_par[14] = nparnuis;
+    int_par[15] = cormod[0];
+    
+    int_par[16] = flagcor[5];
+    int_par[17] = flagcor[6];
+    
+    dou_par[0] = maxtime[0];
+    dou_par[1] = maxdist[0];
+    dou_par[2] = parcor[0];
+    dou_par[3] = parcor[1];//parcor
+    dou_par[4] = parcor[2];//parcor
+    dou_par[5] = parcor[3];//parcor
+    dou_par[6] = parcor[4];//parcor
+    dou_par[7] = nuis[0];
+    dou_par[8] = nuis[1];
+    dou_par[9] = nuis[2];
+    
+    dou_par[10] = parcor[5];//parcor
+    dou_par[11] = parcor[6];//parcor
+    
+    
+    
+    cl_int err;
+    cl_device_id        device;     // compute device id
+    cl_context       context;       // compute context
+    cl_command_queue commands;      // compute command queue
+    cl_program       program;       // compute program
+    cl_kernel        kernel;     // compute kernel
+    
+    
+    // Vars for querying Device Info:
+    
+    char* value;
+    size_t valueSize;
+    cl_uint maxComputeUnits;
+    cl_ulong long_entries;
+    size_t p_size;
+    
+    // Set up OpenCL context, queue, kernel, etc.
+    
+    cl_uint deviceIndex = dev[0];
+    
+    // Get list of devices
+    cl_device_id devices[MAX_DEVICES];
+    unsigned numDevices = getDeviceList(devices);
+    
+    // Check device index in range
+    if (deviceIndex >= numDevices)
+    {
+        printf("Invalid device index (try '--list')\n");
+        //return EXIT_FAILURE;
+    }
+    
+    device = devices[deviceIndex];
+    
+    char name[MAX_INFO_STRING];
+    getDeviceName(device, name);
+    //printf("\nUsing OpenCL device: %s\n", name);
+    
+    
+    // Get Device Info for Execution Model:
+    
+    // print hardware device version
+    clGetDeviceInfo(device, CL_DEVICE_VERSION, 0, NULL, &valueSize);
+    value = (char*) malloc(valueSize);
+    clGetDeviceInfo(device, CL_DEVICE_VERSION, valueSize, value, NULL);
+    //printf(" %d.%d Hardware version: %s\n", i+1, 1, value);
+    free(value);
+    
+    
+    
+    // print software driver version
+    clGetDeviceInfo(device, CL_DRIVER_VERSION, 0, NULL, &valueSize);
+    value = (char*) malloc(valueSize);
+    clGetDeviceInfo(device, CL_DRIVER_VERSION, valueSize, value, NULL);
+    //printf(" %d.%d Software version: %s\n", i+1, 2, value);
+    free(value);
+    
+    
+    
+    // print c version supported by compiler for device
+    clGetDeviceInfo(device, CL_DEVICE_OPENCL_C_VERSION, 0, NULL, &valueSize);
+    value = (char*) malloc(valueSize);
+    clGetDeviceInfo(device, CL_DEVICE_OPENCL_C_VERSION, valueSize, value, NULL);
+    //printf(" %d.%d OpenCL C version: %s\n", i+1, 3, value);
+    free(value);
+    
+    
+    
+    // print parallel compute units
+    clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS,
+                    sizeof(maxComputeUnits), &maxComputeUnits, NULL);
+    //printf(" %d.%d Parallel compute units: %d\n", i+1, 4, maxComputeUnits);
+    
+    
+    clGetDeviceInfo(device,CL_DEVICE_GLOBAL_MEM_SIZE,sizeof(cl_ulong),&long_entries,NULL);
+    //printf(" %d.%d Global Memory (MB):\t%llu\n",i+1, 5,long_entries/1024/1024);
+    clGetDeviceInfo(device,CL_DEVICE_GLOBAL_MEM_CACHE_SIZE,sizeof(cl_ulong),&long_entries,NULL);
+    //printf(" %d.%d Global Memory Cache (MB):\t%llu\n",i+1, 6,long_entries/1024/1024);
+    clGetDeviceInfo(device,CL_DEVICE_LOCAL_MEM_SIZE,sizeof(cl_ulong),&long_entries,NULL);
+    //printf(" %d.%d Local Memory (KB):\t%llu\n",i+1, 7,long_entries/1024);
+    clGetDeviceInfo(device,CL_DEVICE_MAX_CLOCK_FREQUENCY,sizeof(cl_ulong),&long_entries,NULL);
+    //printf(" %d.%d Max clock (MHz) :\t%llu\n",i+1, 8,long_entries);
+    clGetDeviceInfo(device,CL_DEVICE_MAX_WORK_GROUP_SIZE,sizeof(size_t),&p_size,NULL);
+    //printf(" %d.%d Max Work Group Size:\t%zu\n",i+1, 9,p_size);
+    clGetDeviceInfo(device,CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS,sizeof(size_t),&p_size,NULL);
+    //printf(" %d.%d Maximum dimensions:\t%zu\n",i+1, 10,p_size);
+    clGetDeviceInfo(device,CL_DEVICE_MAX_MEM_ALLOC_SIZE,sizeof(size_t),&p_size,NULL);
+    //printf(" %d.%d Max device buffer size (MB):\t%zu\n",i+1, 11,p_size/1024/1024);
+    
+    
+    
+    // Create a compute context
+    context = clCreateContext(0, 1, &device, NULL, NULL, &err);
+    checkError(err, "Creating context");
+    
+    
+    
+    // Create a command queue
+    commands = clCreateCommandQueue(context, device, 0, &err);
+    checkError(err, "Creating command queue");
+    // Create the compute program from the source buffer
+    
+    
+    //char *kernelsource = getKernelSource("Wend.cl");
+    //program = clCreateProgramWithSource(context, 1, (const char **) & kernelsource, NULL, &err);
+    //checkError(err, "Creating program");
+    
+    FILE *fp;
+    size_t binary_size;
+    char *binary_buf;
+    cl_int binary_status;
+    
+    fp = fopen("Wend.cl.bin", "r");
+    if (!fp) {
+        Rprintf("Failed to load kernel.\n");
+    }
+    binary_buf = (char *)malloc(MAX_BINARY_SIZE);
+    binary_size = fread(binary_buf, 1, MAX_BINARY_SIZE, fp);
+    fclose(fp);
+    
+    program = clCreateProgramWithBinary(
+                                        context, 1, &device, (const size_t *)&binary_size,
+                                        (const unsigned char **)&binary_buf, &binary_status, &err
+                                        );
+    free(binary_buf);
+    
+    
+    
+    // Build the program
+    err = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
+    if (err != CL_SUCCESS)
+    {
+        size_t len;
+        char buffer[2048*4];
+        
+        printf("Error: Failed to build program executable!\n%s\n", err_code(err));
+        clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
+        SEP;
+        printf("Build Log:\n%s\n", buffer);
+        SEP;
+        //return EXIT_FAILURE;
+    }
+    // Create the compute kernel from the program
+    
+    kernel = clCreateKernel(program, "scalarspaceocl", &err);
+    checkError(err, "Creating kernel");
+    
+    // Find kernel work-group size
+    size_t work_group_size;
+    err = clGetKernelWorkGroupInfo (kernel, device, CL_KERNEL_WORK_GROUP_SIZE, sizeof(size_t), &work_group_size, NULL);
+    checkError(err, "Getting kernel work group info");
+    //printf("Maximum Kernel work-group size: %lu\n", work_group_size);
+    
+    
+    // Creating buffers
+    size_t coords_buff = sizeof(double) * npts[0];
+    size_t coordt_buff = sizeof(double) * ntime[0];
+    size_t data_buff = sizeof(double) * npts[0]*ntime[0];
+    size_t int_par_buff = sizeof(int) * (16);
+    size_t dou_par_buff = sizeof(double) * (10);
+    
+    size_t g1,g2;
+    const int ll1 =local_wi[0];
+    const int ll2 =local_wi[1];
+    g1 = npts[0] + (ll1 - (npts[0] & (ll1-1))); // SPACE
+    g2 = ntime[0] + (ll2 - (ntime[0] & (ll2-1))); //TIME
+    
+    
+    //printf("GLOBAL:\t%zu\t%zu\n",g1,g2);
+    size_t local[2] = {ll1,ll2};
+    size_t global[2] = { g1,g2};
+    
+    int length = g1*g2;
+    //printf("LENGTH: %d\n",length);
+    size_t length_buff = sizeof(double)* (length);
+    
+    double *h_mom_cond0,*h_mom_cond1,*h_mom_cond2,*h_mom_cond3;
+    h_mom_cond0= (double*)calloc(length, sizeof(double));
+    h_mom_cond1= (double*)calloc(length, sizeof(double));
+    h_mom_cond2= (double*)calloc(length, sizeof(double));
+    h_mom_cond3= (double*)calloc(length, sizeof(double));
+    
+    
+    
+    //st_alloc = wtime();
+    cl_mem d_x = clCreateBuffer(context, CL_MEM_READ_ONLY, coords_buff, NULL, &err);
+    checkError(err, "Creating buffer device X");
+    err = clEnqueueWriteBuffer(commands, d_x, CL_TRUE, 0, coords_buff, (void*)h_x, 0, NULL, NULL);
+    checkError(err, "Writing buffer device X");
+    
+    
+    cl_mem d_y = clCreateBuffer(context, CL_MEM_READ_ONLY, coords_buff, NULL, &err);
+    err = clEnqueueWriteBuffer(commands, d_y, CL_TRUE, 0, coords_buff, (void*)h_y, 0, NULL, NULL);
+    checkError(err, "Creating buffer device Y");
+    
+    
+    cl_mem d_data = clCreateBuffer(context, CL_MEM_READ_ONLY, data_buff, NULL, &err);
+    err = clEnqueueWriteBuffer(commands, d_data, CL_TRUE, 0, data_buff, (void*)h_data, 0, NULL, NULL);
+    checkError(err, "Creating buffer device data");
+    
+    cl_mem d_t = clCreateBuffer(context, CL_MEM_READ_ONLY, coordt_buff, NULL, &err);
+    err = clEnqueueWriteBuffer(commands, d_t, CL_TRUE, 0, coordt_buff, (void*)h_t, 0, NULL, NULL);
+    checkError(err, "Creating buffer device time");
+    
+    cl_mem m0_sol = clCreateBuffer(context, CL_MEM_WRITE_ONLY, length_buff, NULL, &err);
+    checkError(err, "Creating buffer device m0_sol");
+    err = clEnqueueWriteBuffer(commands, m0_sol, CL_TRUE, 0, length_buff, (void*)h_mom_cond0, 0, NULL, NULL);
+    checkError(err, "Writing buffer device m0_sol");
+    
+    
+    cl_mem m1_sol = clCreateBuffer(context, CL_MEM_WRITE_ONLY, length_buff, NULL, &err);
+    checkError(err, "Creating buffer device m1_sol");
+    err = clEnqueueWriteBuffer(commands, m0_sol, CL_TRUE, 0, length_buff, (void*)h_mom_cond1, 0, NULL, NULL);
+    checkError(err, "Writing buffer device m1_sol");
+    
+    cl_mem m2_sol = clCreateBuffer(context, CL_MEM_WRITE_ONLY, length_buff, NULL, &err);
+    checkError(err, "Creating buffer device m2_sol");
+    err = clEnqueueWriteBuffer(commands, m0_sol, CL_TRUE, 0, length_buff, (void*)h_mom_cond2, 0, NULL, NULL);
+    checkError(err, "Writing buffer device m2_sol");
+    
+    cl_mem m3_sol = clCreateBuffer(context, CL_MEM_WRITE_ONLY, length_buff, NULL, &err);
+    checkError(err, "Creating buffer device m3_sol");
+    err = clEnqueueWriteBuffer(commands, m0_sol, CL_TRUE, 0, length_buff, (void*)h_mom_cond3, 0, NULL, NULL);
+    checkError(err, "Writing buffer device m3_sol");
+    
+    cl_mem d_int_par = clCreateBuffer(context, CL_MEM_READ_ONLY, int_par_buff, NULL, &err);
+    err = clEnqueueWriteBuffer(commands, d_int_par, CL_TRUE, 0, int_par_buff, (void*)int_par, 0, NULL, NULL);
+    checkError(err, "Creating buffer device int params");
+    
+    
+    cl_mem d_dou_par = clCreateBuffer(context, CL_MEM_READ_ONLY, dou_par_buff, NULL, &err);
+    err = clEnqueueWriteBuffer(commands, d_dou_par, CL_TRUE, 0, dou_par_buff, (void*)dou_par, 0, NULL, NULL);
+    checkError(err, "Creating buffer device double params");
+    
+    
+    // Push the data out to device
+    clFinish(commands);
+    
+    err = clSetKernelArg(kernel,  0, sizeof(cl_mem), &d_t); //coordt
+    err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_x); //coordx
+    err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &d_y); //coordx
+    err |= clSetKernelArg(kernel, 3, sizeof(cl_mem), &d_data); //data
+    err |= clSetKernelArg(kernel, 4, sizeof(cl_mem), &m0_sol); //mom_cond0
+    err |= clSetKernelArg(kernel, 5, sizeof(cl_mem), &m1_sol); //mom_cond1
+    err |= clSetKernelArg(kernel, 6, sizeof(cl_mem), &m2_sol); //mom_cond2
+    err |= clSetKernelArg(kernel, 7, sizeof(cl_mem), &m3_sol); //mom_cond3
+    err |= clSetKernelArg(kernel, 8, sizeof(cl_mem), &d_int_par); //mom_cond3
+    err |= clSetKernelArg(kernel, 9, sizeof(cl_mem), &d_dou_par); //mom_cond3
+    checkError(err, "Setting kernel args length");
+    
+    
+    // Execute the kernel
+    
+    err = clEnqueueNDRangeKernel(commands, kernel, 2, NULL, global,local, 0, NULL, NULL);
+    checkError(err,"clEnqueueNDRangeKernel\n");
+    clFinish(commands);
+    
+    
+    err = clEnqueueReadBuffer(commands, m0_sol, CL_TRUE, 0,length_buff, h_mom_cond0, 0, NULL, NULL);
+    err = clEnqueueReadBuffer(commands, m1_sol, CL_TRUE, 0,length_buff, h_mom_cond1, 0, NULL, NULL);
+    err = clEnqueueReadBuffer(commands, m2_sol, CL_TRUE, 0,length_buff, h_mom_cond2, 0, NULL, NULL);
+    err = clEnqueueReadBuffer(commands, m3_sol, CL_TRUE, 0,length_buff, h_mom_cond3, 0, NULL, NULL);
+    clFinish(commands);
+    
+    
+    
+    double m0=0,m1=0,m2=0,m3=0;
+    for(i=0; i<(npts[0]*ntime[0]); i++)
+    {
+        m0 += h_mom_cond0[i];
+        m1 += h_mom_cond1[i];
+        m2 += h_mom_cond2[i];
+        m3 += h_mom_cond3[i];
+    }
+    mom_cond[0] =m0;mom_cond[1] =m1;mom_cond[2] =m2;mom_cond[3] =m3;
+    //printf("final result: %.4f\t%.4f\t%.4f\t%.4f\n", m0,m1,m2,m3);
+    
+    
+    // clean up inside kernels
+    
+    clReleaseProgram(program);
+    clReleaseKernel(kernel);
+    clReleaseCommandQueue(commands);
+    clReleaseContext(context);
+    
+    
+    clReleaseMemObject(d_x);
+    clReleaseMemObject(d_y);
+    clReleaseMemObject(d_data);
+    clReleaseMemObject(d_t);
+    clReleaseMemObject(m0_sol);
+    clReleaseMemObject(m1_sol);
+    clReleaseMemObject(m2_sol);
+    clReleaseMemObject(m3_sol);
+    clReleaseMemObject(d_int_par);
+    clReleaseMemObject(d_dou_par);
+    
+    
+    free(h_mom_cond0);
+    free(h_mom_cond1);
+    free(h_mom_cond2);
+    free(h_mom_cond3);
+    
+    
+}
+
 
 // ************* **************       ***************   OPENCL
 int DevOpenCL()
@@ -2834,6 +4030,7 @@ int DevOpenCL()
 
 void create_binary_kernel(int *dev, char **fname)
 {
+    //printf("ARCHIVO fname  %s\n", *fname);
     // Context, program, build:
     cl_int err;
     cl_device_id        device;     // compute device id
@@ -2858,6 +4055,10 @@ void create_binary_kernel(int *dev, char **fname)
     
     device = devices[deviceIndex];
     // Create a compute context
+    /*cl_platform_id platform=NULL;
+     cl_context_properties ctx_properties[] = {
+     CL_CONTEXT_PLATFORM, (cl_context_properties)platform, 0
+     };*/
     context = clCreateContext(0, 1, &device, NULL, NULL, &err);
     checkError(err, "Creating context");
     
@@ -2866,30 +4067,27 @@ void create_binary_kernel(int *dev, char **fname)
     checkError(err, "Creating command queue");
     // Create the compute program from the source buffer
     
-    FILE *fp;
-    //const char fileName[] = fname;
-    size_t source_size;
-    char *source_str;
     
-    // Load kernel source file
-    fp = fopen(*fname, "r");
-    if (!fp) {
-        Rprintf("Failed to load kernel SOURCE.\n");
-    }
-    source_str = (char *)malloc(MAX_SOURCE_SIZE);
-    source_size = fread(source_str, 1, MAX_SOURCE_SIZE, fp);
-    fclose(fp);
+    //fclose(fp);*/
+    //char CL[5];
+    char f_nameCL[100];
+    //strcpy(CL, ".cl");
+    strcpy(f_nameCL, *fname);
+    //strcat(f_nameCL, CL);
+    //printf("ARCHIVO CL  %s\n", f_nameCL);
     
-    program = clCreateProgramWithSource(context,1,(const char **) &source_str, (const size_t *)&source_size, &err);
+    
+    char *kernelsource = getKernelSource(f_nameCL);
+    
+    program = clCreateProgramWithSource(context,1,(const char **) &kernelsource, NULL, &err);
     if(err!=CL_SUCCESS){Rprintf("Failed clCreateProgramWithSource\n");}
     
-    //clBuildProgram(program, 1, &device, NULL, NULL, NULL);
-    //const char *op = "-D fmin(x, y) (((x) <= (y)) ? (x) : (y))";
-    err = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
+    err = clCompileProgram(program, 1, &device, "-I ./", 0, NULL, NULL, NULL, NULL);
+    //err = clBuildProgram(program, 1, &device, NULL, NULL, NULL);
     if (err != CL_SUCCESS)
     {
         size_t len;
-        char buffer[10241*500];
+        char buffer[2048*200];
         
         Rprintf("Error: Failed to build program executable!\n%s\n", err_code(err));
         clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, sizeof(buffer), buffer, &len);
@@ -2922,7 +4120,10 @@ void create_binary_kernel(int *dev, char **fname)
     binary = malloc(binary_size);
     clGetProgramInfo(program, CL_PROGRAM_BINARIES, binary_size, &binary, NULL);
     //if(err!=CL_SUCCESS){Rprintf("Failed to get CL_PROGRAM_BINARIES\n");}
-    f = fopen(BIN_PATH, "w");
+    
+    strcat(*fname, ".bin");
+   // printf("ARCHIVO CL  B %s\n", *fname);
+    f = fopen(*fname, "w");
     fwrite(binary, binary_size, 1, f);
     fclose(f);
     
@@ -2938,3 +4139,5 @@ void create_binary_kernel(int *dev, char **fname)
 }
 
 // ================================ End  Create Binary Kernel
+
+

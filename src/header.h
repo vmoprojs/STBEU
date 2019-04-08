@@ -1,3 +1,4 @@
+#define CL_SILENCE_DEPRECATION
 #ifdef __APPLE__
 #include <OpenCL/opencl.h>
 #include <unistd.h>
@@ -22,6 +23,7 @@
 
 #define MAX_SOURCE_SIZE (0x100000)
 #define BIN_PATH "Kernel.clbin"
+
 
 #define SEP printf("-----------------------------------------------------------\n")
 
@@ -81,3 +83,55 @@ void create_binary_kernel(int *dev, char **fname);
 
 
 //---------END DECLARING FUNCTIONS-----------
+
+
+
+
+
+//---------START WENDLAND FUNCTIONS-----------
+
+/* START Wendland covariance */
+
+/* integrand  in  generalized wendland function*/
+double int_gen(double x,double mu, double alpha,double lag,double supp);
+void integr_gen(double *x, int n, void *ex);
+// function computing generalized wendland
+double wendintegral(double x, double *param);
+/* generalized wendland function*/
+double CorFunW_gen(double lag,double R_power1,double smooth,double scale);  // mu alpha beta
+double wen_time(double *par, double h,double u);
+
+double RES_CorFunW_gen(double *lag,double *R_power1,double *smooth,double *scale, double *res);
+double RES_wen_time(double *par, double *h,double *u, double *res);
+/* END Wendland covariance */
+
+
+/* START DERIVATIVES Wendland covariance */
+
+// SCALE_S:
+double deri_scale_s_wen_time(double *par, double h,double u);
+double RES_deri_scale_s_wen_time(double *par, double *h,double *u, double *res);
+// SCALE_T:
+double deri_scale_t_wen_time(double *par, double h,double u);
+double RES_deri_scale_t_wen_time(double *par, double *h,double *u, double *res);
+// SMOOTH:
+double deri_smooth_wen_time(double *par, double h,double u);
+double RES_deri_smooth_wen_time(double *par, double *h,double *u, double *res);
+// SILL:
+double deri_sill_wen_time(double *par, double h,double u);
+double RES_deri_sill_wen_time(double *par, double *h,double *u, double *res);
+// SEP:
+double deri_sep_wen_time(double *par, double h,double u);
+double RES_deri_sep_wen_time(double *par, double *h,double *u, double *res);
+// R_power:
+double deri_R_power_wen_time(double *par, double h,double u);
+double RES_deri_R_power_wen_time(double *par, double *h,double *u, double *res);
+// R_power_t:
+double deri_R_power_t_wen_time(double *par, double h,double u);
+double RES_deri_R_power_t_wen_time(double *par, double *h,double *u, double *res);
+void WendOCL(int *npts, int *ntime,double *coordt, double *maxtime,double *maxdist,int *cormod, double *parcor,int *flagcor,int *flagnuis,int *npar,double *nuis,double *data,int *weigthed, double *mom_cond, int *dist, double *coordx,double *coordy,double *gradcor,double  *grad, double *ww,int *local_wi, int *dev);
+
+/* END DERIVATIVES Wendland covariance */
+
+
+//---------END WENDLAND FUNCTIONS-----------

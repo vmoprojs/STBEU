@@ -7,7 +7,7 @@
 ### Description:
 ### This file contains a set of procedures
 ### for the set up of all the package routines.
-### Last change: 13/09/2017.
+### Last change: 29/01/2019.
 ####################################################
 
 ### decomposition of a square  matrix
@@ -44,6 +44,25 @@ MatInv<-function(mat.decomp,method)    {
 DevOpenCL <- function()
 {
     .C("DevOpenCL",PACKAGE='STBEU',DUP = TRUE, NAOK=TRUE)
+}
+
+CreateBinary <- function(dev,fname)
+{
+  # library(STBEU)
+  # fname= "Wend"
+  # dev = 0
+  fname <- paste(fname,".cl",sep="")
+  # cat("fname de Composit.r: ",fname,"\n")
+  
+  path.parent <- getwd()
+  
+  path <- system.file("CL", fname, package = "STBEU")
+  path <- gsub(paste("/",fname,sep = ""),"/",path)
+  # .C("create_binary_kernel",  as.integer(GPU),as.character(fname),  PACKAGE='GeoModels',DUP = TRUE, NAOK=TRUE)
+  setwd(path)
+  # fname = gsub(".cl","",fname)
+  .C("create_binary_kernel",as.integer(dev),as.character(fname),PACKAGE='STBEU',DUP = TRUE, NAOK=TRUE)
+  setwd(path.parent)
 }
 
 #######################################################################
@@ -188,6 +207,106 @@ setting_param<-function(cc,theta,fix)
     nparc=sum(flagcor)  
     nparnuis=sum(flagnuis)
   }
+  if(cc==3){       ### Wen_time
+    npar=length(theta)
+    # power2_s,power_s,power2_t,scale_s,scale_t,sep,smooth_t
+    parcor=c(param["power2_s"],param["power_s"],param["power2_t"],
+             param["scale_s"],param["scale_t"],param["sep"],param["smooth_t"]) #corr parameters
+    nuis=c(param["mean"],param["nugget"],param["sill"])   #mean, nugget, sill
+    
+    flagcor=c(0,0,0,0,0,0,0) 
+    
+    if(any(names(theta)=="power2_s"))
+    {
+      flagcor[1] <- 1
+    }
+    if(any(names(fix)=="power2_s"))
+    {
+      flagcor[1] <- 0
+    }
+    if(any(names(theta)=="power_s"))
+    {
+      flagcor[2] <- 1
+    }
+    if(any(names(fix)=="power_s"))
+    {
+      flagcor[2] <- 0
+    }
+    if(any(names(theta)=="power2_t"))
+    {
+      flagcor[3] <- 1
+    }
+    if(any(names(fix)=="power2_t"))
+    {
+      flagcor[3] <- 0
+    }
+    if(any(names(theta)=="scale_s"))
+    {
+      flagcor[4] <- 1
+    }
+    if(any(names(fix)=="scale_s"))
+    {
+      flagcor[4] <- 0
+    }
+    if(any(names(theta)=="scale_t"))
+    {
+      flagcor[5] <- 1
+    }
+    if(any(names(fix)=="scale_t"))
+    {
+      flagcor[5] <- 0
+    }
+    if(any(names(theta)=="sep"))
+    {
+      flagcor[6] <- 1
+    }
+    if(any(names(fix)=="sep"))
+    {
+      flagcor[6] <- 0
+    }
+    if(any(names(theta)=="smooth_t"))
+    {
+      flagcor[7] <- 1
+    }
+    if(any(names(fix)=="smooth_t"))
+    {
+      flagcor[7] <- 0
+    }
+    # print(flagcor)
+    
+    
+    flagnuis=c(0,0,0) 
+    
+    if( any(names(fix)=="mean") )
+    {
+      flagnuis[1] <- 0
+    }
+    if( any(names(theta)=="mean") )
+    {
+      flagnuis[1] <- 1
+    }
+    if( any(names(fix)=="nugget") )
+    {
+      flagnuis[2] <- 0
+    }
+    if( any(names(theta)=="nugget") )
+    {
+      flagnuis[2] <- 1
+    }
+    if( any(names(fix)=="sill") )
+    {
+      flagnuis[3] <- 0
+    }
+    if( any(names(theta)=="sill") )
+    {
+      flagnuis[3] <- 1
+    }
+    
+    # flagcor=c(0,0,1,1,0) 
+    # flagnuis=c(0,0,1) 
+    nparc=sum(flagcor)  
+    nparnuis=sum(flagnuis)
+  }
   setup=list(flagcor=flagcor,flagnuis=flagnuis,npar=npar,parcor=parcor,nuis=nuis,nparc=nparc
              ,nparnuis=nparnuis)
   return(setup)
@@ -215,6 +334,22 @@ checkpar <- function(fix,theta,cc)
     namespar = c("nugget","mean","scale_t","scale_s","sill",
                  "power_s","power_t","sep")
     if((length(fix)+length(theta))!=8) stop("Number of parameters don't match the declared model")
+    if(is.null(names(fix)) || is.null(names(theta))) 
+    {
+      warning("fix and theta should be named. If not, take care about the ouput order") 
+    }else
+    {
+      namesfix = names(fix);namestheta = names(theta)
+    }
+    res = names(theta)
+  }
+  
+  if(cc==3)
+  {
+    namespar = c("nugget","mean","sill",
+                 "power2_s","power_s","power2_t","scale_s",
+                 "scale_t","sep","smooth_t")
+    if((length(fix)+length(theta))!=10) stop("Number of parameters don't match the declared model")
     if(is.null(names(fix)) || is.null(names(theta))) 
     {
       warning("fix and theta should be named. If not, take care about the ouput order") 
