@@ -70,8 +70,8 @@ STBEUFit<-function(theta,fix,coords,times,cc,data,type_dist,maxdist,maxtime, win
     
     
     if(subs==1 && cc==3) type_sub="SubSamp_space_WE_ocl"
-    if(subs==2 && cc==3) type_sub="SubSamp_time_WE_ocl"
-    if(subs==3 && cc==3) type_sub="SubSamp_spacetime_WE_ocl"
+    if(subs==2 && cc==3) {type_sub="SubSamp_time_WE_ocl"}
+    if(subs==3 && cc==3) {type_sub="SubSamp_spacetime_WE_ocl"}
   }else
   {
     if(subs==1) type_sub="SubSamp_space"

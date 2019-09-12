@@ -843,5 +843,118 @@ tCPU;tGPU
 res1=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted, local = local, GPU = GPU,varest = TRUE)
 
 
+
+
+
+#=======================Wen_time=======================#
+###########################################################
+require(GeoModels)
+library(spam)
+require(fields)
+require(STBEU)
+require(MCMCpack)
+
+corrmodel="Wen_time"; 
+
+
+####################################################
+# Define the spatial-coordinates of the points:
+set.seed(8)
+dp <- 3
+ns <- 7
+x <- runif(ns)
+y <- runif(ns)
+coords=cbind(x,y)
+
+
+n=nrow(coords)
+# Define the temporal-coordinates:
+times <- seq(0, 14.75, .3)
+# times <- seq(0, 14.75, 4)
+tt=length(times)
+####################################################
+
+
+####################################################
+smooth_t=2 # k or kappa
+scale_t=time_comp_supp=0.75     # compact supportt scale_t
+scale_s=0.1
+power2_t=3.5+smooth_t #nu
+power_s=2
+power2_s=2.5+2*smooth_t# tau
+
+sep=1  ## 0 0.5  1
+sill=1
+mean=0
+nugget=0
+####################################################
+
+####################################################
+param= list(nugget=0,mean=0,scale_t=time_comp_supp,scale_s=scale_s,
+            sill=sill,power2_t=power2_t,power2_s=power2_s,power_s=power_s,
+            sep=sep,smooth_t=smooth_t)
+####################################################
+# Simulation of a spatial Gaussian RF:
+
+set.seed(8519)
+
+data <- GeoSim(coordx=coords, coordt=times, corrmodel=corrmodel, 
+               param=param)$data
+
+
+start=list(scale_s=scale_s,scale_t=time_comp_supp,sill=sill,smooth_t=smooth_t)
+fixed=list(nugget=0,mean=0,power2_t=power2_t,power2_s=power2_s,power_s=power_s,sep=sep)
+# Maximum composite-likelihood fitting of the random field:
+tCPU0 <- proc.time()
+fit <- GeoFit(data=data,coordx=coords,coordt=times,corrmodel=corrmodel,
+              likelihood="Full",type="Standard",sparse=TRUE,
+              start=start,fixed=fixed)
+tCPU0 <- proc.time()-tCPU0
+print(tCPU0)
+
+
+model=3  #   1=double exponential       2 =gneiting 3 = WenTime
+
+# gneiting model
+cov.model <-"Wen_time"
+cc=3 
+#####
+param <- list(nugget=nugget,mean=mean,sill = sill,
+              power2_s=power2_s,power_s=power_s,power2_t=power2_t,scale_s=scale_s,
+              scale_t=scale_t,sep=sep,smooth_t=smooth_t)
+fixed=list(nugget=nugget,power2_s=power2_s,power2_t=power2_t,sep=sep,mean = mean)  
+fix=c(nugget=nugget,power2_s=power2_s,power2_t=power2_t,sep=sep,mean = mean,power_s=power_s)
+
+################################################
+#   parameters for the temporal subsampling ####
+###############################################
+
+winc=2    ###  length of temporal window
+winstp=1 ###   0.5 half overlapping  1 "no" overlapping
+###############################################
+
+#################################################################
+theta=start                #starting value 
+weighted=0
+type_dist=1                ### type of distance     1=euclidean 2=chordal  3=geodesic 
+maxdist=.4
+maxtime=2
+### eucliden likelihood ################ 
+type_subs=2    ### type of subsampling  1=in space    2= in time
+tCPU = proc.time()
+res=STBEUFit(theta,fix,coords,times,cc,data,type_dist,
+             maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted)
+tCPU = proc.time()-tCPU
+print(tCPU)
+
+
+tGPU = proc.time()
+res1=STBEUFit(theta,fix,coords,times,cc,data,type_dist,
+              maxdist ,maxtime,0,0,winc,
+              winstp,type_subs,weighted,
+              GPU = 0, local = c(1,1))
+tGPU = proc.time()-tGPU
+print(tGPU)
+
 }
 \keyword{Composite}

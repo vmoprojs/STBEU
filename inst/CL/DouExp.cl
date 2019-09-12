@@ -198,7 +198,6 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
     
     
     bool isValid = true;
-    //printf("%d\t%d\n",l,t);
     
     if(l >= npts) isValid = false;
     
@@ -219,22 +218,17 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
                     
                     if(lagt<=maxtime)
                     {
-                        //printf("%d\t%d\t%d\t%f\n",gid,v,t,lagt);
+                        if(!isnan(sdata[(t+ntime*l)])&&!isnan(sdata[(v+ntime*l)]) ){
                         //Computing correlation
                         
                         rho=CorFct(0,lagt,parcor0,parcor1);
-                        //printf("%d\t%d\t%d\t%f\t%f\n",gid,v,t,lagt,rho);
                         //Computing the gradient of the corr parameters
                         
                         GradCorrFct(rho,flagcor0,flagcor1,gradcor,0,lagt,parcor0,parcor1);
                         //Compute the gradient of the composite likelihood:
-                        //printf("%f\t%f\n",gradcor[0],gradcor[1]);
                         
-                        Grad_Pair_Gauss(rho,flagnuis0,flagnuis1,flagnuis2,gradcor,grad,npar,nuis0,nuis1,nuis2,sdata[(t+ntime*l)],sdata[(v+ntime*l)]);
-                        //printf("%f\t%f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",sdata[(t+ntime*l)],sdata[(v+ntime*l)],l,t,m,v,(t+ntime*l),(v+ntime*l),i);
-                        //printf("%f\t%f\t%f\t%f\n",grad[0],grad[1],grad[2],grad[3]);
-                        //printf("%f\t%f\t%f\t%f\t%f\t%f\t%d\t%d\t%d\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3],m1,v1,i);
-                        //printf("%d\t%d\t%d\t%d\n",m1,v1,j,gid);
+                    Grad_Pair_Gauss(rho,flagnuis0,flagnuis1,flagnuis2,gradcor,grad,npar,nuis0,nuis1,nuis2,sdata[(t+ntime*l)],sdata[(v+ntime*l)]);
+                
                         if(weigthed)
                         {
                             weights=CorFunBohman(lagt,maxtime);
@@ -249,7 +243,7 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
                         mom_cond1[i]+=ww1*grad[1];
                         mom_cond2[i]+=ww2*grad[2];
                         mom_cond3[i]+=ww3*grad[3];
-                        //printf("A\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n",ww0,ww1,ww2,ww3,grad[0],grad[1],grad[2],grad[3]);
+                    }
                     }
                 }
             }
@@ -261,17 +255,14 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
                     lagt=fabs(coordt[t]-coordt[v]);
                     if(lagt<=maxtime && lags<=maxdist)
                     {
+                        if(!isnan(sdata[(t+ntime*l)])&&!isnan(sdata[(v+ntime*m)]) ){
                         rho=CorFct(lags,lagt,parcor0,parcor1);
                         //Computing the gradient of the corr parameters
                         GradCorrFct(rho,flagcor0,flagcor1,gradcor,lags,lagt,parcor0,parcor1);
-                        //printf("%f\t%f\n",gradcor[0],gradcor[1]);
                         //Compute the gradient of the composite likelihood:
                         
                         Grad_Pair_Gauss(rho,flagnuis0,flagnuis1,flagnuis2,gradcor,grad,npar,nuis0,nuis1,nuis2,sdata[(t+ntime*l)],sdata[(v+ntime*m)]);
-                        //printf("%f\t%f\t%d\t%d\t%d\t%d\t%d\t%d\n",sdata[(t+ntime*l)],sdata[(v+ntime*l)],l,t,m,v,(t+ntime*l),(v+ntime*l));
-                        //printf("%f\t%f\n",gradcor[0],gradcor[1]);
-                        //printf("%f\t%f\t%f\t%f\t%f\t%f\t%d\t%d\t%d\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3],m1,v1,i);
-                        //printf("%d\t%d\t%d\t%d\n",m1,v1,j,gid);
+
                         if(weigthed)
                         {
                             weights=CorFunBohman(lags,maxdist)*CorFunBohman(lagt,maxtime);
@@ -285,8 +276,8 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
                         mom_cond1[i]+=ww1*grad[1];
                         mom_cond2[i]+=ww2*grad[2];
                         mom_cond3[i]+=ww3*grad[3];
-                        //printf("B\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n",ww0,ww1,ww2,ww3,grad[0],grad[1],grad[2],grad[3]);
-                        //printf("B\t%f\t%f\t%f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3]);
+                    }
+
                     }
                 }
             }

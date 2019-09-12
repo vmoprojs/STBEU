@@ -272,7 +272,7 @@ setting_param<-function(cc,theta,fix)
     {
       flagcor[7] <- 0
     }
-    # print(flagcor)
+    # cat("flagcor: ",flagcor,"\n")
     
     
     flagnuis=c(0,0,0) 

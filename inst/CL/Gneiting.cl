@@ -4,22 +4,15 @@
 double *Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2, double *gradcor, double *grad,
                      int npar, double par0,double par1,double par2, double u, double v)
 {
-    //printf("%f\t%f\t%f\n",par0,par1,par2);
-    //printf("%d\t%d\t%d\n",flag0,flag1,flag2);
     // Initialization variables:
-    //double gcor0 =gradcor[0],gcor1 =gradcor[1];
     double gcor[2];
     gcor[0] =gradcor[0];gcor[1] =gradcor[1];
-    //double grad1[4];
-   //grad1[0]=grad[0];grad1[1]=grad[1];grad1[2]=grad[2];grad1[3]=grad[3];
-    //grad[0]=0;grad[1]=0;grad[2]=0;grad[3]=0;
     double mean=par0,nugget=par1,sill=par2;
     double a=nugget+sill,b=sill*rho,pa=a*a,pb=b*b;
     double c=-pa+pb,d=pa+pb,k=1/(c*c);
     double C=0.0,L=0.0,R=0.0;
     double pn=nugget*nugget,ps=sill*sill,pu=0.0, pv=0.0;
     int h=0, i=0, j=0;
-    //grad[0]=0;grad[1]=0;grad[2]=0;grad[3]=0;
     //defines useful quantities:
     u=u-mean;
     v=v-mean;
@@ -27,7 +20,6 @@ double *Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2, double *gra
     pv=pow(v,2);
     R=pu+pv;L=u*v;
     // Derivatives  respect with the mean
-    //printf("%f\t%f\t%f\t%f\t%f\t%f\n",gcor[0],gcor[1],grad[0],grad[1],grad[2],grad[3]);
     if(flag0==1){grad[i]=(u+v)/(a+b);i++;}
     
     // Derivative  respect with the nugget
@@ -37,37 +29,19 @@ double *Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2, double *gra
     if(flag2==1)
     {
         grad[i]=-0.5*k*(2*(pa*a-pb*(2*sill+3*nugget)+rho*b*(pb-pn))+R*(c+2*nugget*b*rho)+2*L*rho*(ps-pn-pb));
-        // Rprintf("%f \n",grad[i],mean);
         i++;
     }
-    //printf("%f\t%f\t%f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3]);
-    //printf("I: %d\n",i);
+    
     // Derivatives with respect to the correlation parameters
     h=0;
     C=-k*sill*(R*a*b-L*d+b*c);
-    //printf("%f\n",C);
-    
     
     for(j=i;j<npar;j++) // CON I+1 LA PARTE A SE ARREGLA
     {
         grad[j]=(gcor[h])*C;
-        //printf("grad: %f\t%d\n",grad[j],j);
-        //printf("H: %d\n",h);
         h++;
         
     }
-    
-   /* grad[0] = (u+v)/(a+b);
-    grad[1] = -0.5*k*(2*(pa*a-pb*(2*sill+3*nugget)+rho*b*(pb-pn))+R*(c+2*nugget*b*rho)+2*L*rho*(ps-pn-pb));
-    grad[2] = C*(gradcor[0]);
-    grad[3] = C*(gradcor[1]);*/
-    
-    //gradcor[0] = gcor0;gradcor[1] = gcor1;
-    //printf("%f\t%f\t%f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3]);
-    //printf("%f\t%f\t%f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3]);
-    //grad[0]=grad1[0];grad[1]=grad1[1];grad[2]=grad1[2];grad[3]=grad1[3];
-    //gradcor[0] = gcor[0];gradcor[1] = gcor[1];
-    //printf("%f\t%f\t%f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3]);
     return grad;
 }
 // Derivatives with respect to the separable parameter of the Gneiting correlation model:
@@ -226,12 +200,7 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
     double nuis2	=   dou_par[9];
     
     double grad[4];
-    //grad[0]=0;grad[1]=0;grad[2]=0;grad[3]=0;
     double gradcor[2];
-    //printf("%d\n",nparc);
-    //gradcor[0]=0;gradcor[1]=0;
-    
-    //int l=0,t=0,m=0,v=0,gid = get_global_id(0);
     
     int l = get_global_id(0);
     int t = get_global_id(1);
@@ -244,7 +213,6 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
     double ww0 =0,ww1 =0,ww2 =0,ww3 =0;
     
     int gid = (npts*t+l);
-    //int gid = (t+ntime*l);
     
     int m1 = get_local_id(0);
     int v1 = get_local_id(1);
@@ -255,9 +223,6 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
     int wx = (l-m1)/lsize_m;
     int wy = (t-v1)/lsize_v;
     
-    //int gidx = (npts*t+l);
-    //int gidy = (ntime*l+t);
-    
     int gidx = (wx*lsize_m+m1);
     int gidy = (wy*lsize_v+v1);
     
@@ -267,7 +232,6 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
     
     
     bool isValid = true;
-    //printf("%d\t%d\n",l,t);
     
     if(l >= npts) isValid = false;
     
@@ -277,7 +241,6 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
         
     {
         mom_cond0[i] = 0;mom_cond1[i] = 0;mom_cond2[i] = 0;mom_cond3[i] = 0;
-        //printf("%d\t%d\t%d\n",gidx,l,t);
         for(m = l;m<npts;m++)
         {
             if(l==m)
@@ -288,22 +251,14 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
                     
                     if(lagt<=maxtime)
                     {
-                        //printf("%d\t%d\t%d\t%f\n",gid,v,t,lagt);
                         //Computing correlation
                         
                         rho=CorFct(0,lagt,parcor0,parcor1,parcor2,parcor3,parcor4);
-                        //printf("%d\t%d\t%d\t%f\t%f\n",gid,v,t,lagt,rho);
                         //Computing the gradient of the corr parameters
                         
                         GradCorrFct(rho,flagcor0,flagcor1,flagcor2,flagcor3,flagcor4,gradcor,0,lagt,parcor0,parcor1,parcor2,parcor3,parcor4);
                         //Compute the gradient of the composite likelihood:
-                        //printf("%f\t%f\n",gradcor[0],gradcor[1]);
-                        
                         Grad_Pair_Gauss(rho,flagnuis0,flagnuis1,flagnuis2,gradcor,grad,npar,nuis0,nuis1,nuis2,sdata[(t+ntime*l)],sdata[(v+ntime*l)]);
-                        //printf("%f\t%f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n",sdata[(t+ntime*l)],sdata[(v+ntime*l)],l,t,m,v,(t+ntime*l),(v+ntime*l),i);
-                        //printf("%f\t%f\t%f\t%f\n",grad[0],grad[1],grad[2],grad[3]);
-                        //printf("%f\t%f\t%f\t%f\t%f\t%f\t%d\t%d\t%d\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3],m1,v1,i);
-                        //printf("%d\t%d\t%d\t%d\n",m1,v1,j,gid);
                         if(weigthed)
                         {
                             weights=CorFunBohman(lagt,maxtime);
@@ -318,7 +273,6 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
                         mom_cond1[i]+=ww1*grad[1];
                         mom_cond2[i]+=ww2*grad[2];
                         mom_cond3[i]+=ww3*grad[3];
-                        //printf("A\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n",ww0,ww1,ww2,ww3,grad[0],grad[1],grad[2],grad[3]);
                     }
                 }
             }
@@ -333,14 +287,8 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
                         rho=CorFct(lags,lagt,parcor0,parcor1,parcor2,parcor3,parcor4);
                         //Computing the gradient of the corr parameters
                         GradCorrFct(rho,flagcor0,flagcor1,flagcor2,flagcor3,flagcor4,gradcor,lags,lagt,parcor0,parcor1,parcor2,parcor3,parcor4);
-                        //printf("%f\t%f\n",gradcor[0],gradcor[1]);
                         //Compute the gradient of the composite likelihood:
-                        
                         Grad_Pair_Gauss(rho,flagnuis0,flagnuis1,flagnuis2,gradcor,grad,npar,nuis0,nuis1,nuis2,sdata[(t+ntime*l)],sdata[(v+ntime*m)]);
-                        //printf("%f\t%f\t%d\t%d\t%d\t%d\t%d\t%d\n",sdata[(t+ntime*l)],sdata[(v+ntime*l)],l,t,m,v,(t+ntime*l),(v+ntime*l));
-                        //printf("%f\t%f\n",gradcor[0],gradcor[1]);
-                        //printf("%f\t%f\t%f\t%f\t%f\t%f\t%d\t%d\t%d\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3],m1,v1,i);
-                        //printf("%d\t%d\t%d\t%d\n",m1,v1,j,gid);
                         if(weigthed)
                         {
                             weights=CorFunBohman(lags,maxdist)*CorFunBohman(lagt,maxtime);
@@ -354,8 +302,6 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
                         mom_cond1[i]+=ww1*grad[1];
                         mom_cond2[i]+=ww2*grad[2];
                         mom_cond3[i]+=ww3*grad[3];
-                        //printf("B\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t%f\n",ww0,ww1,ww2,ww3,grad[0],grad[1],grad[2],grad[3]);
-                        //printf("B\t%f\t%f\t%f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3]);
                     }
                 }
             }

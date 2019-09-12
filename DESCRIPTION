@@ -15,3 +15,4 @@ Suggests: spam, scatterplot3d, fields, mapproj, gsl, plot3D, shape, sphereplot
 License: GPL (>= 2)
 URL: https://github.com/vmoprojs/STBEU 
 Repository: Github
+Encoding: UTF-8

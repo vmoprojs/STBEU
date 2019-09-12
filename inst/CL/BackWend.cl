@@ -2,7 +2,7 @@
 
 //double *Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2, double gradcor, double grad,
  //                       int npar, double par0,double par1,double par2, double u, double v);
-void Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2, double *gradcor,double *grad,int npar, double par0,double par1,double par2, double u, double v);
+void Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2,  __global double *gradcor,__global double *grad,int npar, double par0,double par1,double par2, double u, double v);
 double int_gen(double x,double mu, double alpha,double lag,double supp);
 void integr_gen(double *x, int n, void *ex);
 double wendintegral(double x, double par0, double par1, double par2);
@@ -22,7 +22,7 @@ double deri_sep_wen_time(double par0,double par1,double par2,double par3,double 
 double deri_R_power_wen_time(double par0,double par1,double par2,double par3,double par4,double par5,double par6, double h,double u);
 //double deri_R_power_t_wen_time(double *par, double h,double u);
 double deri_R_power_t_wen_time(double par0,double par1,double par2,double par3,double par4,double par5,double par6, double h,double u);
-void GradCorrFct(double rho, int flag0, int flag1, int flag2, int flag3, int flag4,int flag5,int flag6,double *grad, double h, double u,double par0,double par1,double par2,double par3,double par4,double par5,double par6);
+void GradCorrFct(double rho, int flag0, int flag1, int flag2, int flag3, int flag4,int flag5,int flag6,__global double *grad, double h, double u,double par0,double par1,double par2,double par3,double par4,double par5,double par6);
 double CorFunBohman(double lag,double scale);
 double CorFunStable(double lag, double power, double scale);
 double CorFct(double h, double u, double par0,double par1,double par2,double par3,double par4,double par5,double par6);
@@ -790,7 +790,7 @@ Last:// set maxerr and ermax.
 */
 
 
-void Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2,double *gradcor, double *grad,
+void Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2,__global double *gradcor,__global double *grad,
                      int npar, double par0,double par1,double par2, double u, double v)
 {
 
@@ -833,10 +833,8 @@ void Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2,double *gradcor
     return;
 }
 
-#define EPS1 1.0e-40
-#define SQE 3.162278e-30
-//#define EPS 1.0e-10
-//#define EPS DBL_EPSILON
+#define EPS 1E-9
+#define DOUBLE_EPS 1E-9
 //#define EPS 1.0e-60
 
 //---------START WENDLAND FUNCTIONS-----------
@@ -992,8 +990,7 @@ double deri_scale_s_wen_time(double par0,double par1,double par2,double par3,dou
     
     //double EPS = 1.0e-10;
     
-    //double delta=sqrt(EPS1)*par3;
-    double delta=SQE*par3;
+    double delta=sqrt(EPS)*par3;
     
     double paro1[7];
     paro1[0]=par0;
@@ -1003,7 +1000,7 @@ double deri_scale_s_wen_time(double par0,double par1,double par2,double par3,dou
     paro1[4]=par4;
     paro1[5]=par5;
     paro1[6]=par6;
-    double grad=(wen_time(paro1[0],paro1[1],paro1[2],paro1[3],paro1[4],paro1[5],paro1[6],h,u)-wen_time(paro11[0],paro11[1],paro11[2],paro11[3],paro11[4],paro11[5],paro11[6],h,u))/delta;
+    double grad=(wen_time(paro1[0],paro1[2],paro1[2],paro1[3],paro1[4],paro1[5],paro1[6],h,u)-wen_time(paro11[0],paro11[2],paro11[2],paro11[3],paro11[4],paro11[5],paro11[6],h,u))/delta;
     //printf("CL: scale_s:%0.20f scale_s1:%0.20f\n",scale_s,scale_s+ delta);
     //printf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
     //free(par1);
@@ -1028,8 +1025,7 @@ double deri_scale_t_wen_time(double par0,double par1,double par2,double par3,dou
     
     //double EPS = 1.0e-10;
     
-    //double delta=sqrt(EPS1)*par4;
-    double delta=SQE*par4;
+    double delta=sqrt(EPS)*par4;
     
     double paro1[7];
     paro1[0]=par0;
@@ -1039,7 +1035,7 @@ double deri_scale_t_wen_time(double par0,double par1,double par2,double par3,dou
     paro1[4]=par4+ delta;
     paro1[5]=par5;
     paro1[6]=par6;
-    double grad=(wen_time(paro1[0],paro1[1],paro1[2],paro1[3],paro1[4],paro1[5],paro1[6],h,u)-wen_time(paro11[0],paro11[1],paro11[2],paro11[3],paro11[4],paro11[5],paro11[6],h,u))/delta;
+    double grad=(wen_time(paro1[0],paro1[2],paro1[2],paro1[3],paro1[4],paro1[5],paro1[6],h,u)-wen_time(paro11[0],paro11[2],paro11[2],paro11[3],paro11[4],paro11[5],paro11[6],h,u))/delta;
     //printf("CL: scale_s:%0.20f scale_s1:%0.20f\n",scale_s,scale_s+ delta);
     //printf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
     //free(par1);
@@ -1064,8 +1060,7 @@ double deri_smooth_wen_time(double par0,double par1,double par2,double par3,doub
     
     //double EPS = 1.0e-10;
     
-    //double delta=sqrt(EPS1)*par6;
-    double delta=SQE*par6;
+    double delta=sqrt(EPS)*par6;
     
     double paro1[7];
     paro1[0]=par0;
@@ -1075,7 +1070,7 @@ double deri_smooth_wen_time(double par0,double par1,double par2,double par3,doub
     paro1[4]=par4;
     paro1[5]=par5;
     paro1[6]=par6+ delta;
-    double grad=(wen_time(paro1[0],paro1[1],paro1[2],paro1[3],paro1[4],paro1[5],paro1[6],h,u)-wen_time(paro11[0],paro11[1],paro11[2],paro11[3],paro11[4],paro11[5],paro11[6],h,u))/delta;
+    double grad=(wen_time(paro1[0],paro1[2],paro1[2],paro1[3],paro1[4],paro1[5],paro1[6],h,u)-wen_time(paro11[0],paro11[2],paro11[2],paro11[3],paro11[4],paro11[5],paro11[6],h,u))/delta;
     //printf("CL: scale_s:%0.20f scale_s1:%0.20f\n",scale_s,scale_s+ delta);
     //printf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
     //free(par1);
@@ -1109,8 +1104,7 @@ double deri_sep_wen_time(double par0,double par1,double par2,double par3,double 
     
     //double EPS = 1.0e-10;
     
-    //double delta=sqrt(EPS1)*par5;
-    double delta=SQE*par5;
+    double delta=sqrt(EPS)*par5;
     
     double paro1[7];
     paro1[0]=par0;
@@ -1120,7 +1114,7 @@ double deri_sep_wen_time(double par0,double par1,double par2,double par3,double 
     paro1[4]=par4;
     paro1[5]=par5+ delta;
     paro1[6]=par6;
-    double grad=(wen_time(paro1[0],paro1[1],paro1[2],paro1[3],paro1[4],paro1[5],paro1[6],h,u)-wen_time(paro11[0],paro11[1],paro11[2],paro11[3],paro11[4],paro11[5],paro11[6],h,u))/delta;
+    double grad=(wen_time(paro1[0],paro1[2],paro1[2],paro1[3],paro1[4],paro1[5],paro1[6],h,u)-wen_time(paro11[0],paro11[2],paro11[2],paro11[3],paro11[4],paro11[5],paro11[6],h,u))/delta;
     //printf("CL: scale_s:%0.20f scale_s1:%0.20f\n",scale_s,scale_s+ delta);
     //printf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
     //free(par1);
@@ -1144,8 +1138,7 @@ double deri_R_power_wen_time(double par0,double par1,double par2,double par3,dou
     
     //double EPS = 1.0e-10;
     
-    //double delta=sqrt(EPS1)*par0;
-    double delta=SQE*par0;
+    double delta=sqrt(EPS)*par0;
     
     double paro1[7];
     paro1[0]=par0+ delta;
@@ -1155,7 +1148,7 @@ double deri_R_power_wen_time(double par0,double par1,double par2,double par3,dou
     paro1[4]=par4;
     paro1[5]=par5;
     paro1[6]=par6;
-    double grad=(wen_time(paro1[0],paro1[1],paro1[2],paro1[3],paro1[4],paro1[5],paro1[6],h,u)-wen_time(paro11[0],paro11[1],paro11[2],paro11[3],paro11[4],paro11[5],paro11[6],h,u))/delta;
+    double grad=(wen_time(paro1[0],paro1[2],paro1[2],paro1[3],paro1[4],paro1[5],paro1[6],h,u)-wen_time(paro11[0],paro11[2],paro11[2],paro11[3],paro11[4],paro11[5],paro11[6],h,u))/delta;
     //printf("CL: scale_s:%0.20f scale_s1:%0.20f\n",scale_s,scale_s+ delta);
     //printf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
     //free(par1);
@@ -1179,8 +1172,7 @@ double deri_R_power_t_wen_time(double par0,double par1,double par2,double par3,d
     
     //double EPS = 1.0e-10;
     
-   // double delta=sqrt(EPS1)*par2;
-    double delta=SQE*par2;
+    double delta=sqrt(EPS)*par2;
     
     double paro1[7];
     paro1[0]=par0;
@@ -1190,7 +1182,7 @@ double deri_R_power_t_wen_time(double par0,double par1,double par2,double par3,d
     paro1[4]=par4;
     paro1[5]=par5;
     paro1[6]=par6;
-    double grad=(wen_time(paro1[0],paro1[1],paro1[2],paro1[3],paro1[4],paro1[5],paro1[6],h,u)-wen_time(paro11[0],paro11[1],paro11[2],paro11[3],paro11[4],paro11[5],paro11[6],h,u))/delta;
+    double grad=(wen_time(paro1[0],paro1[2],paro1[2],paro1[3],paro1[4],paro1[5],paro1[6],h,u)-wen_time(paro11[0],paro11[2],paro11[2],paro11[3],paro11[4],paro11[5],paro11[6],h,u))/delta;
     //printf("CL: scale_s:%0.20f scale_s1:%0.20f\n",scale_s,scale_s+ delta);
     //printf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
     //free(par1);
@@ -1205,26 +1197,25 @@ double deri_R_power_t_wen_time(double par0,double par1,double par2,double par3,d
 //---------END WENDLAND FUNCTIONS-----------
 
 //  Derivatives with respect ot the correlations parameters:
-void GradCorrFct(double rho, int flag0, int flag1, int flag2, int flag3, int flag4,int flag5,int flag6,  double *grad, double h, double u,double par0,double par1,double par2,double par3,double par4,double par5,double par6)
+void GradCorrFct(double rho, int flag0, int flag1, int flag2, int flag3, int flag4,int flag5,int flag6, __global double *grad, double h, double u,double par0,double par1,double par2,double par3,double par4,double par5,double par6)
 {
-    //printf("CL grad: %f\t%f\t%f\n\n",grad[0],grad[1],grad[2]);
-    
+    //printf("CL grad: %f\t%f\t%f\t%f\n\n",grad[0],grad[1],grad[2],grad[3]);
     int i=0;
  
-    //printf("CL FLAGS: %d %d %d %d %d %d %d\n",flag0,flag1,flag2,flag3,flag4,flag5,flag6);
-    if(flag0==1){//power2_s parameter NO
+   // printf("CL FLAGS: %d %d %d %d %d %d %d\n",flag0,flag1,flag2,flag3,flag4,flag5,flag6);
+    if(flag0==1){//power2_s parameter
         grad[i]=deri_R_power_wen_time(par0,par1,par2,par3,par4,par5,par6,h,u);i++;}
-    if(flag1==1){//power_s parameter NO
+    if(flag1==1){//power_s parameter
         grad[i]=0;i++;}
-    if(flag2==1){//power2_t parameter NO
+    if(flag2==1){//power2_t parameter
         grad[i]=deri_R_power_t_wen_time(par0,par1,par2,par3,par4,par5,par6, h,u);i++;}
-    if(flag3==1){//scale_s parameter SI
+    if(flag3==1){//scale_s parameter
         grad[i]=deri_scale_s_wen_time(par0,par1,par2,par3,par4,par5,par6, h,u);i++;}
-    if(flag4==1){//scale_t parameter SI
+    if(flag4==1){//scale_t parameter
         grad[i]=deri_scale_t_wen_time(par0,par1,par2,par3,par4,par5,par6, h,u);i++;}
-    if(flag5==1){//sep parameter NO
+    if(flag5==1){//sep parameter
         grad[i]=deri_sep_wen_time(par0,par1,par2,par3,par4,par5,par6, h,u);i++;}
-    //smooth parameter SI
+    //smooth parameter
     if(flag6==1)
     {grad[i]=deri_smooth_wen_time(par0,par1,par2,par3,par4,par5,par6, h,u);
         //printf("CL param: %f  %f  %f  %f  %f  %f  %f\n",parodia[0],parodia[1],parodia[2],parodia[3],parodia[4],parodia[5],parodia[6]);
@@ -1277,7 +1268,7 @@ double CorFct(double h, double u, double par0,double par1,double par2,double par
     return rho;
 }
 
-__kernel void scalarspaceocl(__global const double *coordt,__global const double *scoordx,__global const double *scoordy, __global const double *sdata, __global double *mom_cond0,__global double *mom_cond1,__global double *mom_cond2,__global double *mom_cond3,__global const int *int_par,__global const double *dou_par)
+__kernel void scalarspaceocl(__global const double *coordt,__global const double *scoordx,__global const double *scoordy, __global const double *sdata, __global double *mom_cond0,__global double *mom_cond1,__global double *mom_cond2,__global double *mom_cond3,__global const int *int_par,__global const double *dou_par,__global  double *grad,__global  double *gradcor)
 {
     
     int npts	=   int_par[0];
@@ -1299,9 +1290,6 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
     
     int flagcor5 = int_par[16];
     int flagcor6 = int_par[17];
-    
-    double grad[npar];
-    double gradcor[nparc];
     
     
     double maxtime	=   dou_par[0];
