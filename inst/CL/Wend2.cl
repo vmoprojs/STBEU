@@ -1,3 +1,5 @@
+#pragma OPENCL EXTENSION cl_amd_printf : enable
+
 void Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2, double *gradcor,double *grad,int npar, double par0,double par1,double par2, double u, double v);
 double int_gen(double x,double mu, double alpha,double lag,double supp);
 void integr_gen(double *x, int n, void *ex);
@@ -21,7 +23,6 @@ double beta (double x, double y);
 
 // ===================================== START Integrate  =====================================//
 // https://github.com/wch/r-source/blob/trunk/src/appl/integrate.c
-
 typedef void integr_fn(double *x, int n, void *ex);
 void Rdqags(integr_fn f, void *ex, double *a, double *b,
             double *epsabs, double *epsrel,
@@ -578,7 +579,8 @@ static void  rdqk21(integr_fn f, void *ex, double *a, double *b, double *result,
         vec[(j << 1) + 9] = centr - absc;
         vec[(j << 1) + 10] = centr + absc;
     }
-    f(vec, 21, ex);
+    //f(vec, 21, ex);
+    integr_gen(vec, 21, ex);
     fc = vec[0];
     resk = wgk[10] * fc;
     *resabs = fabs(resk);
@@ -719,7 +721,7 @@ double beta (double x, double y)
 }
 
 
-// integrand  in  generalized wendland function
+// integrand  in  generalized wendland function*/
 double int_gen(double x,double mu, double alpha,double lag,double supp)
 {
     double res=0.0,y;
@@ -766,22 +768,20 @@ double wendintegral(double x, double par0,double par1,double par2)
 }
 
 
+
 // ===================================== END Integrate  =====================================//
 
 
 
-/********************************************************************/
-/************ gradient of the pairwise CL ****************/
-/********************************************************************/
+///********************************************************************
+//************ gradient of the pairwise CL ****************
+//********************************************************************
 
 
 
 void Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2,double *gradcor, double *grad,
                      int npar, double par0,double par1,double par2, double u, double v)
 {
-
-    //printf("CL grad: %f\t%f\t%f\t%f\n\n",grad[0],grad[1],grad[2],grad[3]);
-    //printf("CL gracor: %f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],gradcor[2],gradcor[3]);
     // Initialization variables:
     double mean=par0,nugget=par1,sill=par2;
     //printf("CL %f %f %f\n",mean,nugget,sill);
@@ -813,84 +813,32 @@ void Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2,double *gradcor
     // Derivatives with respect to the correlation parameters
     h=0;
     C=-k*sill*(R*a*b-L*d+b*c);
-    //printf("%f\n",C);
-    //printf("%d %d\n",i , npar);
     for(j=i;j<npar;j++){grad[j]=C*gradcor[h];h++;}
+    
+    /*if(isnan(grad[0]) || isnan(grad[1]) || isnan(grad[2]) || isnan(grad[3]))
+    {
+        printf("Grad_Pair_Gauss--\ngrad0: %f grad1: %f grad2: %f grad3: %f \n",grad[0],grad[1],grad[2],grad[3]);
+    }*/
+    
+    
     return;
 }
 
 #define EPS1 1.0e-40
-#define SQE 3.162278e-30
-//#define EPS 1.0e-10
-//#define EPS DBL_EPSILON
-//#define EPS 1.0e-60
+//#define SQE 3.162278e-30
+#define SQE 1e-15
+
 
 //---------START WENDLAND FUNCTIONS-----------
 
-/* generalized wendland function*/
-double CorFunW_gen(double lag,double R_power1,double smooth,double scale)  // mu alpha beta
-{
-    
-    //Rprintf("PARAM A: %f %f %f %f\n",lag,R_power1,smooth,scale);
-    double rho=0.0,x=0.0;
-    if(smooth==0) {
-        
-        x=lag/scale;
-        if(x<=1) rho=pow(1-x,R_power1);
-        else rho=0;
-        return(rho);
-    }
-    if(smooth==1) {
-        
-        x=lag/scale;
-        if(x<=1) rho=pow(1-x,R_power1+1)*(1+x*(R_power1+1));
-        else rho=0;
-        return(rho);
-    }
-    if(smooth==2) {
-        
-        x=lag/scale;
-        if(x<=1) rho=pow(1-x,R_power1+2)*(1+x*(R_power1+2)+x*x*(R_power1*R_power1 +4*R_power1 +3 )/3  );
-        else rho=0;
-        return(rho);
-    }
-    
-    x=lag;
-    double param0=R_power1;double param1=smooth;double param2=scale;  //mu,alpha //beta
-    rho=wendintegral(x,param0,param1,param2);
-    //rho = 0.5;
-    
-    return(rho);
-}
-
-
-double wen_time(double par0,double par1,double par2,double par3,double par4,double par5,double par6, double h,double u)
-{
-    //printf("CL %f %f %f %f %f %f %f\n",par[0],par[1],par[2],par[3],par[4],par[5],par[6]);
-    // Rprintf("smooth: %f\n",par[6]);
-    //0:power2_s 1:power_s  2:power2_t   3:scale_s     4:scale_t   5:sep 6:smooth
-    double R_power_s=2.0;
-    double R_power=par0;
-    double R_power_t=par2;
-    double scale_s=par3;
-    double scale_t=par4;
-    double sep=par5;
-    double smooth=par6;
-    //printf("CL: R_power_s: %f R_power: %f R_power_t: %f scale_s: %f scale_t: %f sep: %f smooth: %f \n",R_power_s,R_power,R_power_t,scale_s,scale_t,sep,smooth);
-    double arg=pow(1+pow(h/scale_s,R_power_s/2),-1/(R_power_s/2));
-    double rho=pow(arg,R_power)*CorFunW_gen(u,R_power_t,smooth,scale_t*pow(arg,sep));
-    //printf("rho: %f\n",rho);
-    
-    //double rho=0.289124;
-    return(rho);
-}
 
 
 
-/* END Wendland covariance */
+
+// END Wendland covariance
 
 
-/* START DERIVATIVES Wendland covariance */
+// START DERIVATIVES Wendland covariance
 
 // SCALE_S:
 double deri_scale_s_wen_time(double par0,double par1,double par2,double par3,double par4,double par5,double par6, double h,double u)
@@ -903,10 +851,7 @@ double deri_scale_s_wen_time(double par0,double par1,double par2,double par3,dou
     paro11[4]=par4;
     paro11[5]=par5;
     paro11[6]=par6;
-    
-    //double EPS = 1.0e-10;
-    
-    //double delta=sqrt(EPS1)*par3;
+
     double delta=SQE*par3;
     
     double paro1[7];
@@ -918,12 +863,7 @@ double deri_scale_s_wen_time(double par0,double par1,double par2,double par3,dou
     paro1[5]=par5;
     paro1[6]=par6;
     double grad=(wen_time(paro1[0],paro1[1],paro1[2],paro1[3],paro1[4],paro1[5],paro1[6],h,u)-wen_time(paro11[0],paro11[1],paro11[2],paro11[3],paro11[4],paro11[5],paro11[6],h,u))/delta;
-    //printf("CL: scale_s:%0.20f scale_s1:%0.20f\n",scale_s,scale_s+ delta);
-    //printf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
-    //free(par1);
-   //printf("SCALE_S CL: grad:%f\n",grad);
     return(grad);
-    //
 }
 
 
@@ -996,17 +936,6 @@ double deri_smooth_wen_time(double par0,double par1,double par2,double par3,doub
     //printf("SCALE_S CL: grad:%f\n",grad);
     return(grad);
 }
-
-
-
-// SILL:
-/*double deri_sill_wen_time(double *par, double h,double u)
-{
-    double grad=wen_time(par,h,u);
-    //printf("SILL CL: grad:%f\n",grad);
-    return(grad);
-}
-*/
 
 
 // SEP:
@@ -1113,19 +1042,21 @@ double deri_R_power_t_wen_time(double par0,double par1,double par2,double par3,d
 }
 
 
-/* END DERIVATIVES Wendland covariance */
+// END DERIVATIVES Wendland covariance
 
 
 //---------END WENDLAND FUNCTIONS-----------
 
 //  Derivatives with respect ot the correlations parameters:
+
+
 void GradCorrFct(double rho, int flag0, int flag1, int flag2, int flag3, int flag4,int flag5,int flag6,  double *grad, double h, double u,double par0,double par1,double par2,double par3,double par4,double par5,double par6)
 {
-    //printf("CL grad: %f\t%f\t%f\n\n",grad[0],grad[1],grad[2]);
+    
     
     int i=0;
  
-    //printf("CL FLAGS: %d %d %d %d %d %d %d\n",flag0,flag1,flag2,flag3,flag4,flag5,flag6);
+    
     if(flag0==1){//power2_s parameter NO
         grad[i]=deri_R_power_wen_time(par0,par1,par2,par3,par4,par5,par6,h,u);i++;}
     if(flag1==1){//power_s parameter NO
@@ -1143,14 +1074,14 @@ void GradCorrFct(double rho, int flag0, int flag1, int flag2, int flag3, int fla
     {grad[i]=deri_smooth_wen_time(par0,par1,par2,par3,par4,par5,par6, h,u);
         //printf("CL param: %f  %f  %f  %f  %f  %f  %f\n",parodia[0],parodia[1],parodia[2],parodia[3],parodia[4],parodia[5],parodia[6]);
     }
-    //printf("CL %f\t%f\t%f\n",grad[0],grad[1],grad[2]);
+    
     return;
 }
 
 
-/********************************************************************/
-/************** correlation  models **********************************/
-/********************************************************************/
+//
+//correlation  models
+//
 double CorFunBohman(double lag,double scale)
 {
     double rho=0.0,x=0.0;
@@ -1171,13 +1102,70 @@ double CorFunStable(double lag, double power, double scale)
     rho=exp(-pow(lag/scale,power));
     return rho;
 }
+
+
+
+// generalized wendland function
+double CorFunW_gen(double lag,double R_power1,double smooth,double scale)  // mu alpha beta
+{
+    
+    //Rprintf("PARAM A: %f %f %f %f\n",lag,R_power1,smooth,scale);
+    double rho=0.0,x=0.0;
+    if(smooth==0) {
+        
+        x=lag/scale;
+        if(x<=1) rho=pow(1-x,R_power1);
+        else rho=0;
+        return(rho);
+    }
+    
+    if(smooth==1) {
+        
+        x=lag/scale;
+        if(x<=1) rho=pow(1-x,R_power1+1)*(1+x*(R_power1+1));
+        else rho=0;
+        return(rho);
+    }
+    if(smooth==2) {
+        
+        x=lag/scale;
+        if(x<=1) rho=pow(1-x,R_power1+2)*(1+x*(R_power1+2)+x*x*(R_power1*R_power1 +4*R_power1 +3 )/3  );
+        else rho=0;
+        return(rho);
+    }
+     
+     if(smooth>0) {
+         x=lag;
+         //double param0=R_power1;double param1=smooth;double param2=scale;  //mu,alpha //beta
+         //rho=wendintegral(x,param0,param1,param2);
+         //printf("%f %f %f %f \n",x,R_power1,smooth,scale);
+         rho=wendintegral(x,R_power1,smooth,scale);
+     }
+    return(rho);
+}
+
+
+double wen_time(double par0,double par1,double par2,double par3,double par4,double par5,double par6, double h,double u)
+{
+    double R_power_s=2.0;
+    double R_power=par0;
+    double R_power_t=par2;
+    double scale_s=par3;
+    double scale_t=par4;
+    double sep=par5;
+    double smooth=par6;
+    double arg=pow(1+pow(h/scale_s,R_power_s/2),-1/(R_power_s/2));
+    double
+    rho=pow(arg,R_power)*CorFunW_gen(u,R_power_t,smooth,scale_t*pow(arg,sep));
+    
+    return(rho);
+}
+
 double CorFct(double h, double u, double par0,double par1,double par2,double par3,double par4,double par5,double par6)
 {
     double rho=0.0;
     
     rho=wen_time(par0,par1,par2,par3,par4,par5,par6,h,u);
-    //rho=wen_time(par0,par0,par2,par3,par4,h,u);
-    printf("CL rho: %f\n",rho);
     return rho;
 }
 
@@ -1247,10 +1235,7 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
     int gidy = (wy*lsize_v+v1);
     
     int i = (npts*gidy+gidx);
-    int j = (ntime*gidx+gidy);
-    
-    
-    
+    //int j = (ntime*gidx+gidy);
     bool isValid = true;
     
     if(l >= npts) isValid = false;
@@ -1273,35 +1258,41 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
                     {
                         //Computing correlation
                         
-                        rho=CorFct(0.0,lagt,parcor0,parcor1,parcor2,parcor3,parcor4,parcor5,parcor6);
+                    rho=CorFct(0.0,lagt,parcor0,parcor1,parcor2,parcor3,parcor4,parcor5,parcor6);
+                        if(isnan(rho))
+                        {
+                            printf("A: ++++\n rho: %f\n",rho);
+                            printf("A: PARAMS \nlags %f,lagt %f,parcor0 %f,parcor1 %f,parcor2 %f,parcor3 %f,parcor4 %f,parcor5 %f,parcor6 %f\n",lags,lagt,parcor0,parcor1,parcor2,parcor3,parcor4,parcor5,parcor6);
+                        }
+                        
                         //Computing the gradient of the corr parameters
+                       //printf("A: rho: %f\n",rho);
                         GradCorrFct(rho,flagcor0,flagcor1,flagcor2,flagcor3,flagcor4,flagcor5,flagcor6,gradcor,0,lagt,parcor0,parcor1,parcor2,parcor3,parcor4,parcor5,parcor6);
                         //Compute the gradient of the composite likelihood:
-                        
-                        //printf("A: CL gradcor: %f\t%f\t%f\n\n",gradcor[0],gradcor[1],gradcor[2]);
                         Grad_Pair_Gauss(rho,flagnuis0,flagnuis1,flagnuis2,gradcor,grad,npar,nuis0,nuis1,nuis2,sdata[(t+ntime*l)],sdata[(v+ntime*l)]);
         
-                        /*if(weigthed)
-                        {
-                            weights=CorFunBohman(lagt,maxtime);
-                            ww0 =1,ww1 =1,ww2 =weights,ww3 =weights;
-                        }
-                        else
-                        {
-                            ww0 =1,ww1 =1,ww2 =1,ww3 =1;
-                        }*/
                         ww0 =1.0,ww1 =1.0,ww2 =1.0,ww3 =1.0;
                         mom_cond0[i]+=ww0*grad[0];
                         mom_cond1[i]+=ww1*grad[1];
                         mom_cond2[i]+=ww2*grad[2];
                         mom_cond3[i]+=ww3*grad[3];
-                        //printf("A: grad[0] %f,grad[1] %f,grad[2] %f,grad[3] %f\n",grad[0],grad[1],grad[2],grad[3]);
-
+                        
+                        if(isnan(grad[0]) || isnan(grad[1]) || isnan(grad[2]) || isnan(grad[3]))
+                        {
+                            
+                            printf("A--\ngrad0: %f grad1: %f grad2: %f grad3: %f \n",grad[i],grad[i],grad[i],grad[i]);
+                            
+                            //printf("A--\nHm0: %f Hm1: %f Hm2: %f Hm3: %f \n",mom_cond0[i],mom_cond1[i],mom_cond2[i],mom_cond3[i]);
+                        }
+                        
                     }
                 }
-            }
+            
+              }
+            
             else
             {
+                
                 if(dist==1) lags=hypot(scoordx[l]-scoordx[m],scoordy[l]-scoordy[m]);
                 for(v=0;v<ntime;v++)
                 {
@@ -1309,6 +1300,12 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
                     if(lagt<=maxtime && lags<=maxdist)
                     {
                         rho=CorFct(lags,lagt,parcor0,parcor1,parcor2,parcor3,parcor4,parcor5,parcor6);
+                        if(isnan(rho))
+                        {
+                            printf("B: ++++\n rho: %f\n",rho);
+                            printf("B: PARAMS \nlags %f,lagt %f,parcor0 %f,parcor1 %f,parcor2 %f,parcor3 %f,parcor4 %f,parcor5 %f,parcor6 %f\n",lags,lagt,parcor0,parcor1,parcor2,parcor3,parcor4,parcor5,parcor6);
+                        }
+                        //printf("B: rho: %f\n",rho);
                         //Computing the gradient of the corr parameters
                        //printf("B: CL gradcor: %f\t%f\t%f\n\n",gradcor[0],gradcor[1],gradcor[2]);
                         GradCorrFct(rho,flagcor0,flagcor1,flagcor2,flagcor3,flagcor4,flagcor5,flagcor6,gradcor,0,lagt,parcor0,parcor1,parcor2,parcor3,parcor4,parcor5,parcor6);
@@ -1316,24 +1313,40 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
                         //Compute the gradient of the composite likelihood:
                     Grad_Pair_Gauss(rho,flagnuis0,flagnuis1,flagnuis2,gradcor,grad,npar,nuis0,nuis1,nuis2,sdata[(t+ntime*l)],sdata[(v+ntime*m)]);
                     
-                        /*if(weigthed)
-                        {
-                            weights=CorFunBohman(lags,maxdist)*CorFunBohman(lagt,maxtime);
-                            ww0 =1,ww1 =1,ww2 =weights,ww3 =weights;
-                        }
-                        else
-                        {
-                            ww0 =1,ww1 =1,ww2 =1,ww3 =1;
-                        }*/
+                        
                         ww0 =1.0,ww1 =1.0,ww2 =1.0,ww3 =1.0;
                         mom_cond0[i]+=ww0*grad[0];
                         mom_cond1[i]+=ww1*grad[1];
                         mom_cond2[i]+=ww2*grad[2];
                         mom_cond3[i]+=ww3*grad[3];
                         //printf("B: grad[0] %f,grad[1] %f,grad[2] %f,grad[3] %f\n",grad[0],grad[1],grad[2],grad[3]);
+                        
+                        /*if(isnan(grad[0]) || isnan(grad[1]) || isnan(grad[2]) || isnan(grad[3]))
+                        {
+                            
+                            
+                            
+                            printf("B--\nHm0: %f Hm1: %f Hm2: %f Hm3: %f \n",mom_cond0[i],mom_cond1[i],mom_cond2[i],mom_cond3[i]);
+                            
+                            
+                            printf("GRAD \n %f %f %f  %f \n",grad[0],grad[1],grad[2],grad[3]);
+                            
+                            printf("PARS \n rho %f,sdata[(t+ntime*l)] %f,sdata[(v+ntime*m)] %f,gradcor[0] %f,gradcor[1] %f,gradcor[2] %f,gradcor[3] %f,gradcor[4]  %f \n",rho,sdata[(t+ntime*l)],sdata[(v+ntime*m)],gradcor[0],gradcor[1],gradcor[2],gradcor[3],gradcor[4]);
+                        }*/
+                        if(isnan(grad[0]) || isnan(grad[1]) || isnan(grad[2]) || isnan(grad[3]))
+                        {
+                            
+                            printf("B--\ngrad0: %f grad1: %f grad2: %f grad3: %f \n",grad[i],grad[i],grad[i],grad[i]);
+                            
+                            //printf("A--\nHm0: %f Hm1: %f Hm2: %f Hm3: %f \n",mom_cond0[i],mom_cond1[i],mom_cond2[i],mom_cond3[i]);
+                        }
+                        
+                        
                     }
                 }
+            
             }
+            
         }
     }
 }

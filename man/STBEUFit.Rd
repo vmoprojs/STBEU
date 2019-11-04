@@ -8,8 +8,8 @@
   variances. Moreover the function allows to fix any of the parameters in the optimization.
 }
 \usage{
-STBEUFit(theta,fix=NULL,coords,times,cc,data,type_dist=1,maxdist=NULL,maxtime=NULL, winc_s=NULL,winstp_s=NULL,
-                       winc_t=NULL,winstp_t=NULL,subs=NULL,weighted=FALSE,local=c(1,1),GPU=NULL)
+STBEUFit(theta,fixed=NULL,coords,times,cc,datos,type_dist=1,maxdist=NULL,maxtime=NULL, winc_s=NULL,winstp_s=NULL,
+                       winc_t=NULL,winstp_t=NULL,subs=NULL,weighted=FALSE,local=c(1,1),GPU=NULL,varest = FALSE)
 }
 
 \arguments{
@@ -21,7 +21,7 @@ STBEUFit(theta,fix=NULL,coords,times,cc,data,type_dist=1,maxdist=NULL,maxtime=NU
 \item{times}{A numeric vector assigning 1-dimension of
     temporal coordinates.}    
 \item{cc}{Numerical, the name of a correlation model. Values \eqn{(1,2)} are allowed for Double Exponential and Gneting respectively. See the Section \bold{Details}.}    
-\item{data}{A \eqn{t}{d}-matrix (a single spatial realisation) where \code{d} is the number of spatial sites and \code{t} is the number of temporal coordinates. For the description see the Section \bold{Details}.}
+\item{datos}{A \eqn{t}{d}-matrix (a single spatial realisation) where \code{d} is the number of spatial sites and \code{t} is the number of temporal coordinates. For the description see the Section \bold{Details}.}
 \item{type_dist}{Numerical; \code{1} is Euclinean and \code{2} is Geodesic. The default is \code{1}, the euclidean distance. See the Section \bold{Details}.}
 \item{maxdist}{Numeric; an optional positive value indicating the maximum
     spatial distance considered in the composite likelihood
@@ -46,6 +46,8 @@ STBEUFit(theta,fix=NULL,coords,times,cc,data,type_dist=1,maxdist=NULL,maxtime=NU
 \item{local}{Numeric; number of local work-items of the OpenCL setup. Default is \eqn{c(1,1)}}
 \item{GPU}{Numeric; if \code{NULL} (the default) 
       no GPU computation is performed.}
+\item{varest}{Logical; if \code{FALSE} (the default) 
+      no varcov matrix is returned.}
 }
 
 \details{
@@ -268,29 +270,24 @@ weighted=0
 type_subs=1    ### type of subsampling  1=in space    2= in time
 tCPU = proc.time()
 # names(fix) = c("nugget");names(theta) = c("mean","sill","scale_s","scale_t")
-res=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,0,0,type_subs,weighted)
+res=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,0,0,type_subs,weighted)
 tCPU = proc.time()-tCPU;tCPU
-eu_par=c(res$par[1],res$par[3],res$par[4],res$par[2])
-names(eu_par)=names(fit$param)
-print(eu_par)
+res$par
 
-res=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,0,0,type_subs,weighted,varest =TRUE)
 
 ### OpenCL eucliden likelihood ################ 
 local <- c(1,1)
 GPU <- 0
 tGPU = proc.time()
-res1=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,0,0,type_subs,weighted, local=local, GPU = GPU)
+res1 = STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,0,0,type_subs,weighted, local=local, GPU = GPU)
 tGPU = proc.time()-tGPU;tGPU
-eu_par1=c(res1$par[1],res1$par[3],res1$par[4],res1$par[2])
-names(eu_par1)=names(fit$param)
-print(eu_par1)
+res1$par
 tCPU;tGPU
 
 
 
 
-
+res1 = STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,0,0,type_subs,weighted, local=local, GPU = GPU,varest = TRUE)
 
 
 
@@ -386,29 +383,25 @@ weighted=0
 ### eucliden likelihood ################ 
 type_subs=1    ### type of subsampling  1=in space    2= in time
 tCPU = proc.time()
-res=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,0,0,type_subs,weighted)
+res=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,0,0,type_subs,weighted)
 tCPU = proc.time()-tCPU;tCPU
-eu_par=c(res$par[1],res$par[3],res$par[4],res$par[2])
-names(eu_par)=names(fit$param)
-print(eu_par)
+res$par
 
 
-res=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,0,0,type_subs,weighted,varest = TRUE)
+res=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,0,0,type_subs,weighted,varest = TRUE)
 
 ### OpenCL eucliden likelihood ################ 
 local <- c(1,1)
 GPU <- 0
 tGPU = proc.time()
-res1=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,0,0,type_subs,weighted, local=local, GPU = GPU)
+res1=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,0,0,type_subs,weighted, local=local, GPU = GPU)
 tGPU = proc.time()-tGPU;tGPU
-eu_par1=c(res1$par[1],res1$par[3],res1$par[4],res1$par[2])
-names(eu_par1)=names(fit$param)
-print(eu_par1)
+res1$par
 tCPU;tGPU
 
 
 
-res1=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,0,0,type_subs,weighted, local=local, GPU = GPU,varest = TRUE)
+res1=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,0,0,type_subs,weighted, local=local, GPU = GPU,varest = TRUE)
 
 
 
@@ -490,19 +483,19 @@ weighted=0
 ### eucliden likelihood ################ 
 type_subs=2    ### type of subsampling  1=in space    2= in time
 tCPU = proc.time()
-res=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted)
+res=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted)
 tCPU = proc.time()-tCPU;tCPU
 eu_par=c(res$par[1],res$par[3],res$par[4],res$par[2])
 names(eu_par)=names(fit$param)
 print(eu_par)
 
-res=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted,varest = TRUE)
+res=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted,varest = TRUE)
 
 ### OpenCL eucliden likelihood ################ 
 local <- c(1,1)
 GPU <- 0
 tGPU = proc.time()
-res1=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted, local=local, GPU = GPU)
+res1=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted, local=local, GPU = GPU)
 tGPU = proc.time()-tGPU;tGPU
 eu_par1=c(res1$par[1],res1$par[3],res1$par[4],res1$par[2])
 names(eu_par1)=names(fit$param)
@@ -512,7 +505,7 @@ tCPU;tGPU
 
 
 
-res1=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted, local=local, GPU = GPU,varest = TRUE)
+res1=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted, local=local, GPU = GPU,varest = TRUE)
 
 
 #=======================Gneiting=======================#
@@ -591,20 +584,20 @@ weighted=0
 ### eucliden likelihood ################ 
 type_subs=2    ### type of subsampling  1=in space    2= in time
 tCPU = proc.time()
-res=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted)
+res=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted)
 tCPU = proc.time()-tCPU;tCPU
 eu_par=c(res$par[1],res$par[3],res$par[4],res$par[2])
 names(eu_par)=names(fit$param)
 print(eu_par)
 
 
-res=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted,varest = TRUE)
+res=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted,varest = TRUE)
 
 ### OpenCL eucliden likelihood ################ 
 local <- c(1,1)
 GPU <- 0
 tGPU = proc.time()
-res1=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted, local=local, GPU = GPU)
+res1=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted, local=local, GPU = GPU)
 tGPU = proc.time()-tGPU;tGPU
 eu_par1=c(res1$par[1],res1$par[3],res1$par[4],res1$par[2])
 names(eu_par1)=names(fit$param)
@@ -612,7 +605,7 @@ print(eu_par1)
 tCPU;tGPU
 
 
-res1=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted, local=local, GPU = GPU,varest = TRUE)
+res1=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted, local=local, GPU = GPU,varest = TRUE)
 
 
 
@@ -709,19 +702,19 @@ weighted=0                                          #weigthed version  1=yes 0=n
 ### eucliden likelihood ################ 
 type_subs=3   ### type of subsampling  1=in space    2= in time  3 =spacetime
 tCPU = proc.time()
-res=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted)
+res=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted)
 tCPU = proc.time()-tCPU;tCPU
 eu_par=c(res$par[1],res$par[3],res$par[4],res$par[2])
 names(eu_par)=names(fit$param)
 print(eu_par)
 
-res=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted,varest = TRUE)
+res=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted,varest = TRUE)
 
 ### OpenCL eucliden likelihood ################ 
 local <- c(1,1)
 GPU <- 0
 tGPU = proc.time()
-res1=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted, local = local, GPU = GPU)
+res1=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted, local = local, GPU = GPU)
 tGPU = proc.time()-tGPU;tGPU
 eu_par1=c(res1$par[1],res1$par[3],res1$par[4],res1$par[2])
 names(eu_par1)=names(fit$param)
@@ -729,7 +722,7 @@ print(eu_par1)
 tCPU;tGPU
 
 
-res1=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted, local = local, GPU = GPU,varest = TRUE)
+res1=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted, local = local, GPU = GPU,varest = TRUE)
 
 
 
@@ -820,28 +813,27 @@ weighted=0                                          #weigthed version  1=yes 0=n
 ### eucliden likelihood ################ 
 type_subs=3   ### type of subsampling  1=in space    2= in time  3 =spacetime
 tCPU = proc.time()
-res=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted)
+res=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted)
 tCPU = proc.time()-tCPU;tCPU
 eu_par=c(res$par[1],res$par[3],res$par[4],res$par[2])
 names(eu_par)=names(fit$param)
 print(eu_par)
 
-res=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted,varest = TRUE)
+res=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted,varest = TRUE)
 
 
 ### OpenCL eucliden likelihood ################ 
 local <- c(1,1)
 GPU <- 0
 tGPU = proc.time()
-res1=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted, local = local, GPU = GPU)
+res1=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted, local = local, GPU = GPU)
 tGPU = proc.time()-tGPU;tGPU
 eu_par1=c(res1$par[1],res1$par[3],res1$par[4],res1$par[2])
 names(eu_par1)=names(fit$param)
 print(eu_par1)
 tCPU;tGPU
 
-res1=STBEUFit(theta,fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted, local = local, GPU = GPU,varest = TRUE)
-
+res1=STBEUFit(theta,fixed = fix,coords,times,cc,data,type_dist,maxdist ,maxtime,winc,winstp,winc_t,winstp_t,type_subs,weighted, local = local, GPU = GPU,varest = TRUE)
 
 
 
@@ -890,9 +882,11 @@ nugget=0
 ####################################################
 
 ####################################################
-param= list(nugget=0,mean=0,scale_t=time_comp_supp,scale_s=scale_s,
-            sill=sill,power2_t=power2_t,power2_s=power2_s,power_s=power_s,
-            sep=sep,smooth_t=smooth_t)
+param <- list(nugget=nugget,mean=mean,sill = sill,
+              power2_s=power2_s,power_s=power_s,power2_t=power2_t,scale_s=scale_s,
+              scale_t=scale_t,sep=sep,smooth_t=smooth_t)
+fixed=list(nugget=nugget,power2_s=power2_s,power2_t=power2_t,sep=sep,mean = mean,power_s=power_s)  
+start=list(scale_s=scale_s,scale_t=time_comp_supp,sill=sill,smooth_t=smooth_t)
 ####################################################
 # Simulation of a spatial Gaussian RF:
 
@@ -902,8 +896,6 @@ data <- GeoSim(coordx=coords, coordt=times, corrmodel=corrmodel,
                param=param)$data
 
 
-start=list(scale_s=scale_s,scale_t=time_comp_supp,sill=sill,smooth_t=smooth_t)
-fixed=list(nugget=0,mean=0,power2_t=power2_t,power2_s=power2_s,power_s=power_s,sep=sep)
 # Maximum composite-likelihood fitting of the random field:
 tCPU0 <- proc.time()
 fit <- GeoFit(data=data,coordx=coords,coordt=times,corrmodel=corrmodel,
@@ -919,11 +911,6 @@ model=3  #   1=double exponential       2 =gneiting 3 = WenTime
 cov.model <-"Wen_time"
 cc=3 
 #####
-param <- list(nugget=nugget,mean=mean,sill = sill,
-              power2_s=power2_s,power_s=power_s,power2_t=power2_t,scale_s=scale_s,
-              scale_t=scale_t,sep=sep,smooth_t=smooth_t)
-fixed=list(nugget=nugget,power2_s=power2_s,power2_t=power2_t,sep=sep,mean = mean)  
-fix=c(nugget=nugget,power2_s=power2_s,power2_t=power2_t,sep=sep,mean = mean,power_s=power_s)
 
 ################################################
 #   parameters for the temporal subsampling ####
@@ -942,14 +929,14 @@ maxtime=2
 ### eucliden likelihood ################ 
 type_subs=2    ### type of subsampling  1=in space    2= in time
 tCPU = proc.time()
-res=STBEUFit(theta,fix,coords,times,cc,data,type_dist,
+res=STBEUFit(theta,fixed = unlist(fixed),coords,times,cc,data,type_dist,
              maxdist ,maxtime,0,0,winc,winstp,type_subs,weighted)
 tCPU = proc.time()-tCPU
 print(tCPU)
 
 
 tGPU = proc.time()
-res1=STBEUFit(theta,fix,coords,times,cc,data,type_dist,
+res1=STBEUFit(theta,unlist(fixed),coords,times,cc,data,type_dist,
               maxdist ,maxtime,0,0,winc,
               winstp,type_subs,weighted,
               GPU = 0, local = c(1,1))

@@ -53,7 +53,6 @@ double wendintegral(double x, double *param) {
 double CorFunW_gen(double lag,double R_power1,double smooth,double scale)  // mu alpha beta
 {
     
-    //Rprintf("PARAM A: %f %f %f %f\n",lag,R_power1,smooth,scale);
     double rho=0.0,x=0;
     if(smooth==0) {
         
@@ -90,20 +89,18 @@ double CorFunW_gen(double lag,double R_power1,double smooth,double scale)  // mu
 
 double wen_time(double *par, double h,double u)
 {
-    //printf("C %f %f %f %f %f %f %f\n",par[0],par[1],par[2],par[3],par[4],par[5],par[6]);
-   // Rprintf("smooth: %f\n",par[6]);
-    //0:power2_s 1:power_s  2:power2_t   3:scale_s     4:scale_t   5:sep 6:smooth
-    double R_power_s=2;
+    double R_power_s=2.0;
     double R_power=par[0];
     double R_power_t=par[2];
     double scale_s=par[3];
     double scale_t=par[4];
     double sep=par[5];
     double smooth=par[6];
-    //Rprintf("C: R_power_s: %f R_power: %f R_power_t: %f scale_s: %f scale_t: %f sep: %f smooth: %f \n",R_power_s,R_power,R_power_t,scale_s,scale_t,sep,smooth);
+
     double arg=R_pow(1+R_pow(h/scale_s,R_power_s/2),-1/(R_power_s/2));
     double rho=R_pow(arg,R_power)*CorFunW_gen(u,R_power_t,smooth,scale_t*R_pow(arg,sep));
     return(rho);
+    //return(0.5);
 }
 
 
@@ -139,8 +136,8 @@ double deri_scale_s_wen_time(double *par, double h,double u)
     par1[5]=sep;
     par1[6]=smooth;
     double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
-    //Rprintf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
-    //printf("SCALE_S C: grad:%f\n",grad);
+    Free(par1);
+
     return(grad);
 }
 
@@ -172,8 +169,7 @@ double deri_scale_t_wen_time(double *par, double h,double u)
     par1[5]=sep;
     par1[6]=smooth;
     double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
-    //Rprintf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
-    //printf("SCALE_T C: grad:%f\n",grad);
+    Free(par1);
     return(grad);
     
 }
@@ -205,9 +201,7 @@ double deri_smooth_wen_time(double *par, double h,double u)
     par1[5]=sep;
     par1[6]=smooth+ delta;
     double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
-    //printf("C: %f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
-    //printf("C: grad %f\n",grad);
-    //printf("C: smo:%0.20f smo1:%0.20f\n",par[6],par1[6]);
+   Free(par1);
     return(grad);
 }
 
@@ -248,8 +242,7 @@ double deri_sep_wen_time(double *par, double h,double u)
     par1[5]=sep+ delta;
     par1[6]=smooth;
     double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
-    //Rprintf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
-    //printf("SEP C: grad:%f\n",grad);
+   Free(par1);
     return(grad);
 }
 
@@ -281,7 +274,7 @@ double deri_R_power_wen_time(double *par, double h,double u)
     par1[5]=sep;
     par1[6]=smooth;
     double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
-    //Rprintf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
+   Free(par1);
     return(grad);
 }
 
@@ -313,7 +306,7 @@ double deri_R_power_t_wen_time(double *par, double h,double u)
     par1[5]=sep;
     par1[6]=smooth;
     double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
-    //Rprintf("%f %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta,EPS);
+    Free(par1);
     return(grad);
 }
 
@@ -341,11 +334,9 @@ void Grad_Pair_Gauss(double rho, int *flag, double *gradcor, double *grad,
                      int *npar, double *par, double u, double v)
 {
     // Initialization variables:
-    //printf("%f\t%f\t%f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3]);
-    //printf("C grad: %f\t%f\t%f\t%f\n\n",grad[0],grad[1],grad[2],grad[3]);
-    //printf("C gracor: %f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],gradcor[2],gradcor[3]);
+    
     double mean=par[0],nugget=par[1],sill=par[2];
-    //printf("C %f %f %f\n",mean,nugget,sill);
+   
     double a=nugget+sill,b=sill*rho,pa=a*a,pb=b*b;
     double c=-pa+pb,d=pa+pb,k=1/(c*c);
     double C=0.0,L=0.0,R=0.0;
@@ -368,23 +359,13 @@ void Grad_Pair_Gauss(double rho, int *flag, double *gradcor, double *grad,
     if(flag[2]==1)
     {
         grad[i]=-0.5*k*(2*(pa*a-pb*(2*sill+3*nugget)+rho*b*(pb-pn))+R*(c+2*nugget*b*rho)+2*L*rho*(ps-pn-pb));
-        // Rprintf("%f \n",grad[i],mean);
+        
         i++;
     }
-    //printf("%f\t%f\t%f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3]);
-    //printf("I: %d\n",i);
     // Derivatives with respect to the correlation parameters
     h=0;
     C=-k*sill*(R*a*b-L*d+b*c);
-    //printf("C: %f\n",C);
-    //printf("C: i: %d j: %d\n",i,j);
-    //printf("C\t%f\t%f\t%f\t%f\n",grad[0],grad[1],grad[2],grad[3]);
     for(j=i;j<*npar;j++){grad[j]=C*gradcor[h];h++;}
-    //printf("grad: %f\t%d\n",grad[j],j);
-    //printf("H: %d\n",h);h++;}
-    //printf("%f\t%f\t%f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3]);
-//printf("C: grad[0] %f,grad[1] %f,grad[2] %f,grad[3] %f\n",grad[0],grad[1],grad[2],grad[3]);
-    //printf("C: flag0: %d,flag1: %d,flag2: %d\n",flag[0],flag[1],flag[2]);
     return;
 }
 
@@ -486,7 +467,7 @@ double CorFunStable(double lag, double power, double scale)
 
 double CorFct(int *cormod, double h, double u, double *par)
 {
-    //Rprintf("%f %f %f %f %f %f %f\n",par[0],par[1],par[2],par[3],par[4],par[5],par[6]);
+   
     double arg=0.0,  power_s=0.0, power_t=0.0;
     double rho=0.0, sep=0,  scale_s=0.0, scale_t=0;
     
@@ -509,9 +490,7 @@ double CorFct(int *cormod, double h, double u, double *par)
             break;
             
         case 3:   //WendLand Time correlation model
-            //printf("C: %f %f %f %f %f %f %f\n",par[0],par[1],par[2],par[3],par[4],par[5],par[6]);
             rho=wen_time(par,h,u);
-            //printf("C rho: %f\n",rho);
             break;
     }
     return rho;
@@ -524,12 +503,9 @@ double CorFct(int *cormod, double h, double u, double *par)
 void GradCorrFct(double rho, int *cormod, int *flag,
                  double *grad, double h, double u,double *par)
 {
-//printf("C FLAGS: %d %d %d %d %d %d %d \n",flag[0],flag[1],flag[2],flag[3],flag[4],flag[5],flag[6]);
-    //Rprintf("PAR: %f %f %f %f %f %f %f\n",par[0],par[1],par[2],par[3],par[4],par[5],par[6]);
-    //printf("C grad: %f\t%f\t%f\n\n",grad[0],grad[1],grad[2]);
     int i=0;
-    double power_s=0, power_t=0;
-    double scale_s=0, scale_t=0, sep=0;
+    double power_s=0.0, power_t=0.0;
+    double scale_s=0.0, scale_t=0.0, sep=0.0;
     
     switch(*cormod)// Correlation functions are in alphabetical order
     {
@@ -562,27 +538,29 @@ void GradCorrFct(double rho, int *cormod, int *flag,
                 grad[i]=DGneiting_sep(h,u,power_s,power_t,scale_s,scale_t,sep);
             break;
         case 3://WendLand time
-           
-            //0:power2_s 1:power_s  2:power2_t   3:scale_s     4:scale_t   5:sep 6:smooth
+
+            //0:power2_s 1:power_s=2  2:power2_t   3:scale_s     4:scale_t   5:sep 6:smooth
             if(flag[0]==1){//power2_s parameter
-                grad[i]=deri_R_power_wen_time(par, h,u);i++;}
+                grad[i]=deri_R_power_wen_time(par, h,u);i++;
+            }
             if(flag[1]==1){//power_s parameter
                 grad[i]=0;i++;}
             if(flag[2]==1){//power2_t parameter
                 grad[i]=deri_R_power_t_wen_time(par, h,u);i++;}
             if(flag[3]==1){//scale_s parameter
+                //grad[i] = 0.1;
                 grad[i]=deri_scale_s_wen_time(par, h,u);i++;}
             if(flag[4]==1){//scale_t parameter
+                //grad[i] = 0.1;
                 grad[i]=deri_scale_t_wen_time(par, h,u);i++;}
             if(flag[5]==1){//sep parameter
                 grad[i]=deri_sep_wen_time(par, h,u);i++;}
             //smooth parameter
             if(flag[6]==1)
             {
+                //grad[i] = 0.1;
                 grad[i]=deri_smooth_wen_time(par, h,u);
-                //printf("C param: %f  %f  %f  %f  %f  %f  %f\n",par[0],par[1],par[2],par[3],par[4],par[5],par[6]);
             }
-            //printf("C %f\t%f\t%f\n",grad[0],grad[1],grad[2]);
             break;
     }
     
@@ -632,7 +610,7 @@ void SeqStep(double *x, int len, double step, double *res)
     res[0]=x[0];
     for(i=0;i<len;i++) {
         res[i+1]=res[i]+step;
-    //    Rprintf("res[i]+step %f\n",res[i]+step);
+    
     }
     return;
 }
@@ -652,7 +630,7 @@ void SetSampling_s(int ncoord,int ntime,double *coordx, double *coordy, double *
         {
             scoordx[j]=coordx[i];
             scoordy[j]=coordy[i];
-            //Rprintf("%f %f\n",scoordx[j],scoordy[j]);
+           
             for(h=0;h<ntime;h++)
             {
                 sdata[f]=data[h+ntime*i];f++;
@@ -671,7 +649,6 @@ void SetSampling_t(double *data,double *sdata,int ncoord,int ntime,int wint,int 
         for(j=(k+(ntime*i));j<(k+wint+(ntime*i));j++)
         {
             sdata[p]=data[j];p++;
-            //printf("%d\t%d\t%d\t\n",p,i,j);
         }
     
     return;

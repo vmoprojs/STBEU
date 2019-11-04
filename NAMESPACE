@@ -1,9 +1,13 @@
 exportPattern("^[^\\.]")
 useDynLib(STBEU)
-export(STBEUFit)
+export(STBEUFit,print.STBEUFit)
+S3method(print,STBEUFit)
 importFrom("grDevices", dev.cur)
 importFrom("graphics", abline, lines, par, persp, plot,points)
 importFrom("stats", dist, nlm, optim, optimize, pchisq,pnorm,qnorm,rgamma,rnorm, uniroot, var)
+importFrom("MCMCpack",xpnd)
 importFrom("methods","is", "new", "slot<-")
-import("CompRandFld")
+
+
+
 
