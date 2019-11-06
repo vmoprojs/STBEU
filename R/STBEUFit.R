@@ -9,19 +9,18 @@
 ### for the set up of all the package routines.
 ### Last change: 29/01/2019.
 ####################################################
-STBEUFit<-function(theta,fixed=NULL,coords,times,cc,datos,type_dist=1,
-                   maxdist=NULL,maxtime=NULL, winc_s=NULL,winstp_s=NULL,
-                   winc_t=NULL,winstp_t=NULL,subs=NULL,weighted=FALSE,
-                   local=c(1,1),GPU=NULL,varest = FALSE)             
+STBEUFit<-function(theta,fixed=NULL,coords,times,cc,data,type_dist=1,maxdist=NULL,maxtime=NULL, winc_s=NULL,winstp_s=NULL,
+                   winc_t=NULL,winstp_t=NULL,subs=NULL,weighted=FALSE,local=c(1,1),GPU=NULL,varest = FALSE)             
 {
-    
+  # param <- c(theta,fix)
+  # print(match(names(param) ,c("nugget","mean","scale_t","scale_s","sill")) )
+  # print(match(names(param) , c("nugget","mean","scale_t","scale_s","sill")))
   path.parent <- getwd()
   model = cc
   
   if(model == 1)
   {
     param <- c(theta,fixed)
-    # cat("Nombres: ",names(param),"\n")
     filtro <- match(names(param) ,c("nugget","mean","scale_t","scale_s","sill"))
     if(!filtro || length(filtro)==0) stop("All parameters (fix and theta) must be named")
   }
@@ -36,7 +35,6 @@ STBEUFit<-function(theta,fixed=NULL,coords,times,cc,datos,type_dist=1,
   if(model == 3)
   {
     param <- c(theta,fixed)
-    
     filtro <- match(names(param) , c("nugget","mean","sill",
                                      "power2_s","power_s","power2_t","scale_s",
                                      "scale_t","sep","smooth_t"))
@@ -51,67 +49,44 @@ STBEUFit<-function(theta,fixed=NULL,coords,times,cc,datos,type_dist=1,
     cat("Number of temporal blocks is: ",nsub_t,"\n")
     stop("Number of temporal windows must be greater than 2, check winc_t parameter. START values are printed. We recommend 5 blocks or more")
   }
-  
   if(!is.null(GPU)) 
   {
-   if(GPU == 0)
-   {
-       if (model ==1) kernel = "DouExp.cl"
-       if (model ==2) kernel = "Gneiting.cl"
-       if (model ==3) kernel = "Wend.cl"
-       path <- system.file("CL", kernel, package = "STBEU")
-       path <- gsub(paste("/",kernel,sep=""),"/",path)
-       setwd(path)
-       .C("create_binary_kernel",  as.integer(GPU),as.character(kernel),  PACKAGE='STBEU',DUP = TRUE, NAOK=TRUE)
-   }
-   
-  if(GPU == 2)
-  {
-     if (model ==1) kernel = "DouExp.cl"
-     if (model ==2) kernel = "Gneiting.cl"
-     if (model ==3) kernel = "Wend2.cl"
-     path <- system.file("CL", kernel, package = "STBEU")
-     path <- gsub(paste("/",kernel,sep=""),"/",path)
-     setwd(path)
-     .C("create_binary_kernel_GPU",  as.integer(GPU),as.character(kernel),  PACKAGE='STBEU',DUP = TRUE, NAOK=TRUE)
-  }
+    if (model ==1) kernel = "DouExp.cl"
+    if (model ==2) kernel = "Gneiting.cl"
+    if (model ==3) kernel = "Wend.cl"
+    path <- system.file("CL", kernel, package = "STBEU")
+    path <- gsub(paste("/",kernel,sep=""),"/",path);setwd(path)
+    # print(path)
+    # fname <- paste(fname,"_OCL",sep="")
+    .C("create_binary_kernel",  as.integer(GPU),as.character(kernel),  PACKAGE='STBEU',DUP = TRUE, NAOK=TRUE)
+    
+    if(subs==1 && cc==1) type_sub="SubSamp_space_DE_ocl"
+    if(subs==2 && cc==1) type_sub="SubSamp_time_DE_ocl"
+    if(subs==3 && cc==1) type_sub="SubSamp_spacetime_DE_ocl"
+    
+    if(subs==1 && cc==2) type_sub="SubSamp_space_GN_ocl"
+    if(subs==2 && cc==2) type_sub="SubSamp_time_GN_ocl"
+    if(subs==3 && cc==2) type_sub="SubSamp_spacetime_GN_ocl"
     
     
-    if(subs==1 && cc==1) type_sub="SubSamp_space_ocl"
-    if(subs==2 && cc==1) type_sub="SubSamp_time_ocl"
-    if(subs==3 && cc==1) type_sub="SubSamp_spacetime_ocl"
-    
-    if(subs==1 && cc==2) type_sub="SubSamp_space_ocl"
-    if(subs==2 && cc==2) type_sub="SubSamp_time_ocl"
-    if(subs==3 && cc==2) type_sub="SubSamp_spacetime_ocl"
-    
-    
-    if(subs==1 && cc==3) type_sub="SubSamp_space_ocl"
-    if(subs==2 && cc==3) {type_sub="SubSamp_time_ocl"}
-    if(subs==3 && cc==3) {type_sub="SubSamp_spacetime_ocl"}
-    
-  }
-  if(is.null(GPU))
+    if(subs==1 && cc==3) type_sub="SubSamp_space_WE_ocl"
+    if(subs==2 && cc==3) {type_sub="SubSamp_time_WE_ocl"}
+    if(subs==3 && cc==3) {type_sub="SubSamp_spacetime_WE_ocl"}
+  }else
   {
     if(subs==1) type_sub="SubSamp_space"
     if(subs==2) type_sub="SubSamp_time"
     if(subs==3) type_sub="SubSamp_spacetime"
-     kernel = NULL
   }
-  
-  
   coordx=coords[,1];coordy=coords[,2];ncoords=nrow(coords);ntime=length(times)
   npar=length(theta)
   ## optimization
-  # print("EMPIEZAAAAA")
   res=optim(par =theta,fixed=fixed,fn = eucl_st_ocl,coordx=coordx,coordy=coordy,ncoords=ncoords,
-            times=times,ntime=ntime,cc=cc,datos=datos,type_dist=type_dist,maxdist= maxdist,
+            times=times,ntime=ntime,cc=cc,data=data,type_dist=type_dist,maxdist= maxdist,
             maxtime=maxtime,winc_s=winc_s,winstp_s=winstp_s,winc_t=winc_t,winstp_t=winstp_t,
-            weighted=weighted,type_sub=type_sub,local = local, 
-            GPU = GPU,list(fnscale=1,reltol=1e-14, maxit=1000),kernel = kernel)
-# print("TERMINAAAAA")
+            weighted=weighted,type_sub=type_sub,local = local, GPU = GPU,control=list(maxit=1000))
   # on.exit(rm(res))
-  
+  setwd(path.parent)
   names = checkpar(fix=fixed,theta=theta,cc=cc)
   
   
@@ -122,7 +97,7 @@ STBEUFit<-function(theta,fixed=NULL,coords,times,cc,datos,type_dist=1,
     if(subs==3) type_sub="SubSamp_spacetime"
     
     varval <- varestfun(theta = res$par,fixed = fixed,coordx=coordx,coordy=coordy,ncoords=ncoords,
-    times=times,ntime=ntime,cc=cc,datos=datos,type_dist=type_dist,maxdist= maxdist,
+    times=times,ntime=ntime,cc=cc,data=data,type_dist=type_dist,maxdist= maxdist,
     maxtime=maxtime,winc_s=winc_s,winstp_s=winstp_s,winc_t=winc_t,winstp_t=winstp_t,
     weighted=weighted,type_sub=type_sub,local = c(1,1), GPU = NULL)
     
@@ -132,16 +107,14 @@ STBEUFit<-function(theta,fixed=NULL,coords,times,cc,datos,type_dist=1,
   }
   
   # return(list(res = res, varval = varval,varcov = solve(varval)))
-  setwd(path.parent)
   print.STBEUFit(x = res, names = names,GPU,varest)# OJO
   return(res)
 }
 
 #######################################################################
 #######################################################################
-eucl_st_ocl<-function(theta,fixed,coordx,coordy,ncoords,times,ntime,cc,datos,type_dist,maxdist,maxtime,
-                      winc_s,winstp_s,winc_t,winstp_t,
-                      weighted,type_sub,local,GPU,kernel)
+eucl_st_ocl<-function(theta,fixed,coordx,coordy,ncoords,times,ntime,cc,data,type_dist,maxdist,maxtime,
+                      winc_s,winstp_s,winc_t,winstp_t,weighted,type_sub,local,GPU)
   
 {
   setup=setting_param(cc,theta,fixed)
@@ -155,13 +128,8 @@ eucl_st_ocl<-function(theta,fixed,coordx,coordy,ncoords,times,ntime,cc,datos,typ
   
   if(cc ==2)
   {
-    # print(setup$parcor)
-    if(setup$parcor[1] <0 |setup$parcor[1] >1 | 
-       setup$parcor[2]<0 | setup$parcor[2]>1| 
-       setup$parcor[3]<=0  | 
-       setup$parcor[4]<=0 
-       | setup$parcor[5]<0 |setup$parcor[5]>1 | 
-       setup$nuis[3]<0){
+    if(setup$parcor[1] <0 |setup$parcor[1] >1 | setup$parcor[2]<0 | setup$parcor[2]>1| setup$parcor[3]<=0  | setup$parcor[4]<=0 
+       | setup$parcor[5]<0 |setup$parcor[5]>1 | setup$nuis[3]<0){
       obj = 1e100
       return (obj)}
   }
@@ -188,23 +156,18 @@ eucl_st_ocl<-function(theta,fixed,coordx,coordy,ncoords,times,ntime,cc,datos,typ
   vari=double(setup$npar*0.5*(setup$npar-1)+setup$npar) ## vector of upper  triangular cov matrix (with diagonal)
   
   means=double(setup$npar)          ## vector of means
-  
   p=.C(as.character(type_sub),as.double(coordx), as.double(coordy), as.double(times),as.integer(ncoords),
-       as.integer(ntime),as.integer(cc), as.double(datos),as.integer(type_dist),as.double(maxdist),
+       as.integer(ntime),as.integer(cc), as.double(data),as.integer(type_dist),as.double(maxdist),
        as.double(maxtime),as.integer(setup$npar),vaina = as.double(setup$parcor),as.integer(setup$nparc),
        as.double(setup$nuis),as.integer(setup$nparnuis),as.integer(setup$flagcor),as.integer(setup$flagnuis),
        vv=as.double(vari),as.double(winc_s), as.double(winstp_s),as.double(winc_t), as.double(winstp_t),
-       mm=as.double(means),as.integer(weighted),as.integer(local),as.integer(GPU),as.character(kernel),
-       PACKAGE='STBEU',DUP = TRUE, NAOK=TRUE)
-  # print(str(p))
-  # print("OUT++INSIDE")
-  # print("Vamo despues de")
-  #cat("Parameters:",p$vaina,"\n")
+       mm=as.double(means),as.integer(weighted),as.integer(local),as.integer(GPU))
+  
+  # cat("Parameters:",p$vaina,"\n")
   # cat("FLAGNUIS:",setup$flagnuis,"\n")
   # cat("FLAGCOR:",setup$flagcor,"\n")
   x=p$mm       #means vector
-  # cat("Means vector:",x,"\n")
-  # cat("Vari :",p$vv,"\n")
+  # cat("Ax:",x,"\n")
   F.1=xpnd(p$vv) #cov matrix
   Fchol = MatDecomp(F.1,"cholesky")
   if(length(Fchol)==1)
@@ -220,15 +183,13 @@ eucl_st_ocl<-function(theta,fixed,coordx,coordy,ncoords,times,ntime,cc,datos,typ
     obj= crossprod(crossprod(inv, x), x)# quadratic form
   }
   # print(obj)
-  # if(!is.null(GPU)) gc()
   return(obj)
 }
 
 
 
-varestfun<-function(theta,fixed=NULL,coordx,coordy,ncoords,times,ntime,cc,datos,type_dist=1,maxdist=NULL,maxtime=NULL,
-                    winc_s=NULL,winstp_s=NULL,winc_t=NULL,winstp_t=NULL,
-                    weighted=FALSE,type_sub=NULL,local=c(1,1),GPU=NULL)
+varestfun<-function(theta,fixed,coordx,coordy,ncoords,times,ntime,cc,data,type_dist,maxdist,maxtime,
+                      winc_s,winstp_s,winc_t,winstp_t,weighted,type_sub,local,GPU)
   
 {
   # print(theta)
@@ -283,7 +244,7 @@ varestfun<-function(theta,fixed=NULL,coordx,coordy,ncoords,times,ntime,cc,datos,
   means=double(setup$npar)                               ## vector of means
   
   p=.C(as.character(type_sub),as.double(coordx), as.double(coordy), as.double(times),as.integer(ncoords),
-       as.integer(ntime),as.integer(cc), as.double(datos),as.integer(type_dist),as.double(maxdist),
+       as.integer(ntime),as.integer(cc), as.double(data),as.integer(type_dist),as.double(maxdist),
        as.double(maxtime),as.integer(setup$npar),as.double(setup$parcor),as.integer(setup$nparc),
        as.double(setup$nuis),as.integer(setup$nparnuis),as.integer(setup$flagcor),as.integer(setup$flagnuis),
        vv=as.double(vari),as.double(winc_s), as.double(winstp_s),as.double(winc_t), as.double(winstp_t),
@@ -291,7 +252,6 @@ varestfun<-function(theta,fixed=NULL,coordx,coordy,ncoords,times,ntime,cc,datos,
   
   x=p$mm       #means vector
   varval=xpnd(p$vv) #cov matrix
-  
   return(varval)
 }
 

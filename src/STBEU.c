@@ -85,8 +85,11 @@ void scalar_space(int *npts, int *ntime,double *coordt, double *maxtime,double *
 
 void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,int *ntime,int *cormod,double *data,int *dist, double *maxdist,double *maxtime,int *npar,double *parcor,int *nparc,double *nuis,int *nparnuis, int *flagcor, int *flagnuis,double *vari,double *winc, double *winstp,double *a, double *b,double *block_mean,int *weigthed, int *local_wi, int *dev)
 {
+   
+    
     double   *rangex, *rangey;
     double *vv,*sdata,*xgrid,*ygrid,*scoordx,*scoordy;
+    //double *gradcor, *grad, *ww;
     double *gradcor, *grad, *ww;
     double **tot,*mom_cond,**vector_mean;    //matrix moments conditions
     double delta=0.0, deltax=0.0, deltay=0.0, dimwinx=0.0, dimwiny=0.0;
@@ -128,11 +131,20 @@ void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,in
     numintx=floor((deltax-dimwinx)/(winstx)+1);   //number of overlapping sub-windows is  numintx+1 * numinty+1
     numinty=floor((deltay-dimwiny)/(winsty)+1);
     
+    //Rprintf("X: %d  %f  %f  %f  %f  %f  %f\n",numintx,deltax,rangex[1],rangex[0],dimwinx,winstx,winstp[0]);
+    //Rprintf("Y: %d  %f  %f  %f  %f  %f\n",numinty,deltay,rangey[1],rangey[0],dimwiny,winsty);
+    //Rprintf("B. MIERDAAA\n");
+    
     xgrid=(double *) R_alloc(numintx, sizeof(double));
     ygrid=(double *) R_alloc(numinty, sizeof(double));
     
+    //Rprintf("C. MIERDAAA\n");
+    
+    //Rprintf("Y: %d  %d  %f  %f  %f  %f %f %f\n",numintx,numinty,rangex[1],rangex[0],rangey[1],rangey[0],winstx,winsty);
     SeqStep(rangex,numintx,winstx,xgrid);
     SeqStep(rangey,numinty,winsty,ygrid);
+    
+    //Rprintf("D. MIERDAAA\n");
     
     // matrix of means (one for each window)
     
@@ -141,6 +153,7 @@ void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,in
     {
         vector_mean[i]=(double *) Calloc((numintx+1)*(numinty+1),double);
     }
+    //Rprintf("E. MIERDAAA\n");
     
     ww=(double *) Calloc(*npar,double);
     gradcor=(double *) Calloc(*nparc,double);
@@ -148,6 +161,14 @@ void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,in
     
     nsub=0;
     n_win=numintx*numinty;   //// number of windows
+    //Rprintf("%d\n",n_win);
+    
+    
+    /*int nsens=0;
+    double *sens,*sensmat;
+    nsens=*npar * (*npar+1)/2;
+    sens=(double *) Calloc(nsens,double);// One sensitive contribute
+    sensmat=(double *) Calloc(nsens,double);// sensitivity matrix*/
     
     for(i=0;i<=numintx;i++)
     {
@@ -184,13 +205,13 @@ void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,in
         }
     }
     
-    Free(scoordx);
-    Free(scoordy);
-    Free(sdata);
-    Free(grad);
-    Free(gradcor);
-    Free(ww);
     
+    //printf("npar:%d, sill %f alfa_s %f alfa_s %f\n",npar[0],grad[2],gradcor[0],gradcor[1]);
+    //printf("npar:%d, g1 %f g2 %f g3 %f  gc %f gc %f\n",npar[0],grad[0],grad[1],grad[2],gradcor[0],gradcor[1]);
+    //printf("nsens:%d, 1 %f 2 %f 3 %f 4 %f 5 %f 6 %f\n",nsens,sensmat[0],sensmat[1],sensmat[2],sensmat[3],sensmat[4],sensmat[5]);
+    
+    //printf("nparc:%d npar:%d\n",*nparc,*npar);
+    Free(scoordx);Free(scoordy);Free(sdata);Free(grad);Free(gradcor);Free(ww);
     tot= (double **) Calloc(npar[0],double *);
     for(i=0;i<npar[0];i++)
     {

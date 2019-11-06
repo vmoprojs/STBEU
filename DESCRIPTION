@@ -1,14 +1,17 @@
 Package: STBEU
 Version: 1.0.0
-Date: 2018-10-23
+Date: 2017-09-13
 Title: SpaceTime Blockwise Euclidean Likelihood for Gaussian Models in Geostatistics
-Authors@R: c(person("Moreno", "Bevilacqua", role = c("aut", "cre"),email ="moreno.bevilacqua@uv.cl"),person("Víctor", "Morales-Oñate", role = "aut",email ="victor.morales@uv.cl"))
-Author: Moreno Bevilacqua [aut, cre],Víctor Morales-Onate [aut]
+Authors@R: c(person("Moreno", "Bevilacqua", role = c("aut", "cre"),
+                     email = "moreno.bevilacqua@uv.cl"),
+              person("Víctor", "Morales-Oñate", role = "aut",email = "victor.morales@uv.cl"))
+Author: Moreno Bevilacqua [aut, cre],
+  Víctor Morales-Onate [aut]
 Maintainer: Victor Morales Onate <victor.morales@uv.cl>
 Depends: R (>= 2.12.0) 
 Description: This package provides a set of procedures modeling Gaussian Random Fields using Blockwise Euclidean Likelihood using OpenCL
-Imports: methods, MCMCpack, grDevices, graphics, stats
-Suggests: spam, scatterplot3d, fields, mapproj, gsl, plot3D, shape, sphereplot,GeoModels
+Imports: methods, GeoModels, MCMCpack
+Suggests: spam, scatterplot3d, fields, mapproj, gsl, plot3D, shape, sphereplot
 License: GPL (>= 2)
 URL: https://github.com/vmoprojs/STBEU 
 Repository: Github
