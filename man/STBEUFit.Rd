@@ -8,8 +8,8 @@
   variances. Moreover the function allows to fix any of the parameters in the optimization.
 }
 \usage{
-STBEUFit(theta,fixed=NULL,coords,times,cc,data,type_dist=1,maxdist=NULL,maxtime=NULL, winc_s=NULL,winstp_s=NULL,
-                       winc_t=NULL,winstp_t=NULL,subs=NULL,weighted=FALSE,local=c(1,1),GPU=NULL,varest = FALSE)
+STBEUFit(theta,fixed=NULL,coords,times,cc,datos,type_dist=1,maxdist=NULL,maxtime=NULL, winc_s=NULL,winstp_s=NULL,
+                       winc_t=NULL,winstp_t=NULL,subs=NULL,weighted=FALSE,local=c(1,1),GPU=NULL,varest = FALSE,optimizer = "Nelder-Mead")
 }
 
 \arguments{
@@ -21,7 +21,7 @@ STBEUFit(theta,fixed=NULL,coords,times,cc,data,type_dist=1,maxdist=NULL,maxtime=
 \item{times}{A numeric vector assigning 1-dimension of
     temporal coordinates.}    
 \item{cc}{Numerical, the name of a correlation model. Values \eqn{(1,2)} are allowed for Double Exponential and Gneting respectively. See the Section \bold{Details}.}    
-\item{data}{A \eqn{t}{d}-matrix (a single spatial realisation) where \code{d} is the number of spatial sites and \code{t} is the number of temporal coordinates. For the description see the Section \bold{Details}.}
+\item{datos}{A \eqn{t}{d}-matrix (a single spatial realisation) where \code{d} is the number of spatial sites and \code{t} is the number of temporal coordinates. For the description see the Section \bold{Details}.}
 \item{type_dist}{Numerical; \code{1} is Euclinean and \code{2} is Geodesic. The default is \code{1}, the euclidean distance. See the Section \bold{Details}.}
 \item{maxdist}{Numeric; an optional positive value indicating the maximum
     spatial distance considered in the composite likelihood
@@ -48,6 +48,7 @@ STBEUFit(theta,fixed=NULL,coords,times,cc,data,type_dist=1,maxdist=NULL,maxtime=
       no GPU computation is performed.}
 \item{varest}{Logical; if \code{FALSE} (the default) 
       no varcov matrix is returned.}
+\item{optimizer}{string; "method" in optim ("Nelder-Mead" the default).}
 }
 
 \details{
@@ -942,7 +943,6 @@ res1=STBEUFit(theta,unlist(fixed),coords,times,cc,data,type_dist,
               GPU = 0, local = c(1,1))
 tGPU = proc.time()-tGPU
 print(tGPU)
-
 
 }
 \keyword{Composite}

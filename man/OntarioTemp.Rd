@@ -1,12 +1,9 @@
-\name{OntarioTemp}
-\alias{OntarioTemp}
-\title{Ontario Hourly temperature}
-\usage{data(OntarioSummer2018Hour)}
+\name{OntarioSummer}
+\alias{OntarioSummer}
+\title{Ontario Hourly temperature - Summer 2018}
+\usage{data(OntarioSummer)}
 \description{
-  Ontario Hourly temperature on 2018.
-  
-  
-  
+  Ontario Hourly temperature on summer (2018-06-21 to 2018-09-21) 2018.
   
   # ***** (Not necesasary to run) Final Dataset used in STBEU was generated using the following:
 

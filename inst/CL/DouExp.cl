@@ -1,25 +1,27 @@
-/********************************************************************/
-/************ gradient of the pairwise CL ****************/
-/********************************************************************/
-double *Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2, double *gradcor, double *grad,
+void Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2, double *gradcor,double *grad,int npar, double par0,double par1,double par2, double u, double v);
+double DStabSc(double lag, double power, double scale, double rho);
+void GradCorrFct(double rho, int flag0, int flag1,
+                 double *grad, double h, double u,double par0,double par1);
+double CorFunBohman(double lag,double scale);
+double CorFunStable(double lag, double power, double scale);
+double CorFct(double h, double u, double par0,double par1);
+
+
+
+void Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2,double *gradcor, double *grad,
                      int npar, double par0,double par1,double par2, double u, double v)
 {
-    //printf("%f\t%f\t%f\n",par0,par1,par2);
-    //printf("%d\t%d\t%d\n",flag0,flag1,flag2);
+
+    //printf("CL grad: %f\t%f\t%f\t%f\n\n",grad[0],grad[1],grad[2],grad[3]);
+    //printf("CL gracor: %f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],gradcor[2],gradcor[3]);
     // Initialization variables:
-    //double gcor0 =gradcor[0],gcor1 =gradcor[1];
-    double gcor[2];
-    gcor[0] =gradcor[0];gcor[1] =gradcor[1];
-    //double grad1[4];
-   //grad1[0]=grad[0];grad1[1]=grad[1];grad1[2]=grad[2];grad1[3]=grad[3];
-    //grad[0]=0;grad[1]=0;grad[2]=0;grad[3]=0;
     double mean=par0,nugget=par1,sill=par2;
+    //printf("CL %f %f %f\n",mean,nugget,sill);
     double a=nugget+sill,b=sill*rho,pa=a*a,pb=b*b;
     double c=-pa+pb,d=pa+pb,k=1/(c*c);
     double C=0.0,L=0.0,R=0.0;
     double pn=nugget*nugget,ps=sill*sill,pu=0.0, pv=0.0;
     int h=0, i=0, j=0;
-    //grad[0]=0;grad[1]=0;grad[2]=0;grad[3]=0;
     //defines useful quantities:
     u=u-mean;
     v=v-mean;
@@ -27,49 +29,28 @@ double *Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2, double *gra
     pv=pow(v,2);
     R=pu+pv;L=u*v;
     // Derivatives  respect with the mean
-    //printf("%f\t%f\t%f\t%f\t%f\t%f\n",gcor[0],gcor[1],grad[0],grad[1],grad[2],grad[3]);
     if(flag0==1){grad[i]=(u+v)/(a+b);i++;}
-    
     // Derivative  respect with the nugget
-    if(flag1==1){grad[i]=0.5*k*(R*d-L*4*b*a-2*a*(pa-pb));i++;}
-    
+    if(flag1==1)
+    {
+        grad[i]=0.5*k*(R*d-L*4*b*a-2*a*(pa-pb));i++;
+    }
     // Derivative respect with the sill
     if(flag2==1)
     {
         grad[i]=-0.5*k*(2*(pa*a-pb*(2*sill+3*nugget)+rho*b*(pb-pn))+R*(c+2*nugget*b*rho)+2*L*rho*(ps-pn-pb));
-        // Rprintf("%f \n",grad[i],mean);
         i++;
     }
-    //printf("%f\t%f\t%f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3]);
-    //printf("I: %d\n",i);
+
     // Derivatives with respect to the correlation parameters
     h=0;
     C=-k*sill*(R*a*b-L*d+b*c);
     //printf("%f\n",C);
-    
-    
-    for(j=i;j<npar;j++) // CON I+1 LA PARTE A SE ARREGLA
-    {
-        grad[j]=(gcor[h])*C;
-        //printf("grad: %f\t%d\n",grad[j],j);
-        //printf("H: %d\n",h);
-        h++;
-        
-    }
-    
-   /* grad[0] = (u+v)/(a+b);
-    grad[1] = -0.5*k*(2*(pa*a-pb*(2*sill+3*nugget)+rho*b*(pb-pn))+R*(c+2*nugget*b*rho)+2*L*rho*(ps-pn-pb));
-    grad[2] = C*(gradcor[0]);
-    grad[3] = C*(gradcor[1]);*/
-    
-    //gradcor[0] = gcor0;gradcor[1] = gcor1;
-    //printf("%f\t%f\t%f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3]);
-    //printf("%f\t%f\t%f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3]);
-    //grad[0]=grad1[0];grad[1]=grad1[1];grad[2]=grad1[2];grad[3]=grad1[3];
-    //gradcor[0] = gcor[0];gradcor[1] = gcor[1];
-    //printf("%f\t%f\t%f\t%f\t%f\t%f\n",gradcor[0],gradcor[1],grad[0],grad[1],grad[2],grad[3]);
-    return grad;
+    //printf("%d %d\n",i , npar);
+    for(j=i;j<npar;j++){grad[j]=C*gradcor[h];h++;}
+    return;
 }
+
 // Derivatives with respect to scale of the Stable correlation model:
 double DStabSc(double lag, double power, double scale, double rho)
 {
@@ -131,6 +112,8 @@ double CorFct(double h, double u, double par0,double par1)
     return rho;
 }
 
+
+//*********************************************************************
 __kernel void scalarspaceocl(__global const double *coordt,__global const double *scoordx,__global const double *scoordy, __global const double *sdata, __global double *mom_cond0,__global double *mom_cond1,__global double *mom_cond2,__global double *mom_cond3,__global const int *int_par,__global const double *dou_par)
 {
     
@@ -138,23 +121,24 @@ __kernel void scalarspaceocl(__global const double *coordt,__global const double
     int ntime	=	int_par[1];
     int flagcor0	=	int_par[2];
     int flagcor1	=	int_par[3];
-    int flagnuis0	=	int_par[4];
-    int flagnuis1	=	int_par[5];
-    int flagnuis2	=	int_par[6];
-    int npar	=	int_par[7];
-    int weigthed	=	int_par[8];
-    int dist	=	int_par[9];
-    int nparc	=	int_par[10];
-    int nparnuis	=	int_par[11];
-    int cormod	=	int_par[12];
+    int flagnuis0	=	int_par[7];
+    int flagnuis1	=	int_par[8];
+    int flagnuis2	=	int_par[9];
+    int npar	=	int_par[10];
+    int weigthed	=	int_par[11];
+    int dist	=	int_par[12];
+    int nparc	=	int_par[13];
+    int nparnuis	=	int_par[14];
+    int cormod	=	int_par[15];
     
     double maxtime	=	dou_par[0];
     double maxdist	=	dou_par[1];
     double parcor0	=	dou_par[2];
     double parcor1	=	dou_par[3];
-    double nuis0	=	dou_par[4];
-    double nuis1	=	dou_par[5];
-    double nuis2	=	dou_par[6];
+    double nuis0	=	dou_par[7];
+    double nuis1	=	dou_par[8];
+    double nuis2	=	dou_par[9];
+    
     
     double grad[4];
     //grad[0]=0;grad[1]=0;grad[2]=0;grad[3]=0;

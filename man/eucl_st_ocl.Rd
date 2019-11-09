@@ -7,9 +7,9 @@
   inserted is correct.
 }
 \usage{
-eucl_st_ocl(theta,fixed=NULL,coordx,coordy,ncoords,times,ntime,cc,data,type_dist=1,maxdist=NULL,maxtime=NULL,
-                      winc_s=NULL,winstp_s=NULL,winc_t=NULL,winstp_t=NULL,
-                      weighted=FALSE,type_sub=NULL,local=c(1,1),GPU=NULL)
+eucl_st_ocl(theta,fixed,coordx,coordy,ncoords,times,ntime,cc,datos,type_dist,maxdist,maxtime,
+                      winc_s,winstp_s,winc_t,winstp_t,
+                      weighted,type_sub,local,GPU,kernel)
 }
 \arguments{
   \item{theta}{Numeric; a vector which has fixed parameters info.}
@@ -20,7 +20,7 @@ eucl_st_ocl(theta,fixed=NULL,coordx,coordy,ncoords,times,ntime,cc,data,type_dist
   \item{times}{Numeric; it indicates the correlation model}
   \item{ntime}{Numeric; it indicates the correlation model}
   \item{cc}{Numeric; it indicates the correlation model}
-  \item{data}{Numeric; it indicates the correlation model}
+  \item{datos}{Numeric; it indicates the correlation model}
   \item{type_dist}{Numeric; it indicates the correlation model}
   \item{maxdist}{Numeric; it indicates the correlation model}
   \item{maxtime}{Numeric; it indicates the correlation model}
@@ -32,6 +32,7 @@ eucl_st_ocl(theta,fixed=NULL,coordx,coordy,ncoords,times,ntime,cc,data,type_dist
   \item{type_sub}{Numeric; it indicates the correlation model}
   \item{local}{Numeric; it indicates the correlation model}
   \item{GPU}{Numeric; it indicates the correlation model}
+  \item{kernel}{Character; It has the function name for binary convertion}
   
   
 }
