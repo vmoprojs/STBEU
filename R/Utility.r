@@ -363,7 +363,14 @@ checkpar <- function(fix,theta,cc)
 }
 # checkpar(fix,theta)
 
-
+EvalRho <- function(cc,h,u,parEval)
+{
+  rr = 0
+  sol = .C("CorFct_call",as.double(cc),as.double(h),as.double(u),
+           as.double(parEval),res = as.double(rr),  
+           PACKAGE='STBEU',DUP = TRUE, NAOK=TRUE)
+  return(sol$res)
+}
 
 
 print.STBEUFit <- function(x,names,GPU,varest, digits = max(3, getOption("digits") - 3), ...)

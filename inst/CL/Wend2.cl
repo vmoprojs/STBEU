@@ -825,8 +825,8 @@ void Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2,double *gradcor
 }
 
 #define EPS1 1.0e-40
-//#define SQE 3.162278e-30
-#define SQE 1e-15
+#define SQE 3.162278e-30
+//#define SQE 1e-15
 
 
 //---------START WENDLAND FUNCTIONS-----------

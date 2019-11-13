@@ -46,11 +46,25 @@ STBEUFit<-function(theta,fixed=NULL,coords,times,cc,datos,type_dist=1,
 
 
   nsub_t=floor((( length(times)-winc_t)/(winc_t*winstp_t)+1))
+  nsub_s=floor((( (max(coords)-min(coords))-winc_t)/(winc_s*winstp_s)+1))
+  
   if(subs==2 && nsub_t<=2)
   {
     cat("Number of temporal blocks is: ",nsub_t,"\n")
     stop("Number of temporal windows must be greater than 2, check winc_t parameter. START values are printed. We recommend 5 blocks or more")
   }
+  
+  # if(subs==1 && nsub_t<=2)
+  # {
+  #   cat("Number of spatial blocks is: ",nsub_t,"\n")
+  #   stop("Number of spatial windows must be greater than 2, check winc_t parameter. START values are printed. We recommend 5 blocks or more")
+  # }
+  # 
+  # if(subs==1 && nsub_t<=2 && nsub_t<=2)
+  # {
+  #   cat("Number of spatial blocks is: ",nsub_t,"\n")
+  #   stop("Number of spatial windows must be greater than 2, check winc_t parameter. START values are printed. We recommend 5 blocks or more")
+  # }
   
   if(!is.null(GPU)) 
   {

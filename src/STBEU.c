@@ -127,6 +127,8 @@ void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,in
     winsty=*winstp * dimwiny;     // y step is a  proportion of sub-window y length (deafult is 0.5)
     numintx=floor((deltax-dimwinx)/(winstx)+1);   //number of overlapping sub-windows is  numintx+1 * numinty+1
     numinty=floor((deltay-dimwiny)/(winsty)+1);
+    //printf("--------- numintx %d numinty %d",numintx,numinty);
+    //printf("--------- numintx %d numinty %d   deltax %f deltay %f dimwinx: %f dimwiny: %f n_win %d winstx %f winstx %f cc1 %f cc2 %f \n",numintx,numinty,deltax,deltay,dimwinx,dimwiny,n_win,winstx,winsty,((deltax-dimwinx)/(winstx)+1),((deltay-dimwiny)/(winsty)+1));
     
     xgrid=(double *) R_alloc(numintx, sizeof(double));
     ygrid=(double *) R_alloc(numinty, sizeof(double));
@@ -147,7 +149,8 @@ void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,in
     grad=(double *) Calloc(*npar,double);
     
     nsub=0;
-    n_win=numintx*numinty;   //// number of windows
+    n_win=(numintx)*(numinty);   //// number of windows
+    
     
     for(i=0;i<=numintx;i++)
     {

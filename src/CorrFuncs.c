@@ -495,6 +495,16 @@ double CorFct(int *cormod, double h, double u, double *par)
     }
     return rho;
 }
+
+
+// cdf of  a bivariate Gausssian distribution
+void CorFct_call(int *cormod, double *h, double *u, double *par,double *res)
+{
+    
+    *res=   CorFct(cormod, h[0], u[0], par);
+    //Rprintf("rho: %f\n",*res);
+    //*res=   cdf_norm(0,0,.5,1);
+}
 /********************************************************************/
 /********************************************************************/
 /********************************************************************/
