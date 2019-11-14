@@ -366,7 +366,7 @@ checkpar <- function(fix,theta,cc)
 EvalRho <- function(cc,h,u,parEval)
 {
   rr = 0
-  sol = .C("CorFct_call",as.double(cc),as.double(h),as.double(u),
+  sol = .C("CorFct_call",as.integer(cc),as.double(h),as.double(u),
            as.double(parEval),res = as.double(rr),  
            PACKAGE='STBEU',DUP = TRUE, NAOK=TRUE)
   return(sol$res)
