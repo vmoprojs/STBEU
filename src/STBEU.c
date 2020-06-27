@@ -252,6 +252,9 @@ void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,in
 void scalar_time(int *ncoord,int *nstime,double *sublagt,int *cormod,double *parcor,int *flagcor, double *gradcor,int *flagnuis, double *grad,int *npar,double *nuis, double *sdata,int *weigthed,double *maxtime, double *ww, double *mom_cond,int *dist, double *coordx, double *coordy,double *maxdist)
 {
     //Rprintf("C: R_power_s: %f R_power: %f R_power_t: %f scale_s: %f scale_t: %f sep: %f smooth: %f \n",parcor[1],parcor[0],parcor[2],parcor[3],parcor[4],parcor[5],parcor[6]);
+    // 0,0,0,1,1,0,1
+     //printf("\n\nA: C FLAGCOR: %d\t%d\t%d\t%d\t%d\t%d\t%d\n\n",flagcor[0],flagcor[1],flagcor[2],flagcor[3],flagcor[4],flagcor[5],flagcor[6]);
+    //printf("CORMOD: %d\n",cormod[0]);
     
     int l= 0, t=0, m=0, v=0,kk=0;
     double lags=0.0,lagt=0.0,rho=0.0;
@@ -276,7 +279,8 @@ void scalar_time(int *ncoord,int *nstime,double *sublagt,int *cormod,double *par
                             
                             GradCorrFct(rho,cormod,flagcor,gradcor,0,lagt,parcor);
                             
-                            //printf("A: C gradcor: %f\t%f\t%f\n\n",gradcor[0],gradcor[1],gradcor[2]);
+                            //printf("A: C gradcor: %f\t%f\t%f    rho: %f\n\n",gradcor[0],gradcor[1],gradcor[2],rho);
+                           
                             //Compute the gradient of the composite likelihood:
                             Grad_Pair_Gauss(rho,flagnuis,gradcor,grad,npar,nuis,sdata[(t+nstime[0]*l)],sdata[(v+nstime[0]*l)]);
                             /*if(*weigthed)
@@ -419,7 +423,7 @@ void SubSamp_time(double *coordx, double *coordy,double *coordt, int *ncoord,int
         for(kk=0;kk<*npar;kk++)
         {
             block_mean[kk]= block_mean[kk]+ vector_mean[kk][q]/nsub;
-            //Rprintf("block_mean[kk]:%f\n",block_mean[kk]);
+            //printf("block_mean[kk]:%f\n",block_mean[kk]);//problema
             /*if(ISNAN(block_mean[kk]))
             {
                 Rprintf("block_mean[kk]: %f vector_mean[kk][q]: %f kk: %d\n",block_mean[kk],vector_mean[kk][q],kk);
@@ -432,6 +436,7 @@ void SubSamp_time(double *coordx, double *coordy,double *coordt, int *ncoord,int
         for(kk=0;kk<*npar;kk++)
         {
             tot[kk][q]=  vector_mean[kk][q]+block_mean[kk];
+            //printf("tot[kk][q]: %f\n", tot[kk][q]);//Problema
         }
     }
     ////computing variance covarianmce matrix
@@ -444,7 +449,9 @@ void SubSamp_time(double *coordx, double *coordy,double *coordt, int *ncoord,int
         {
             for(q=p;q< *npar;q++)
             {
-                vv[h]=vv[h]+(tot[p][r])*(tot[q][r])/(nsub);h++;
+                vv[h]=vv[h]+(tot[p][r])*(tot[q][r])/(nsub);
+                //printf("vv[h]: %f\n", vv[h]); // PROBLEMA
+                h++;
             }
         }
     }
@@ -467,6 +474,128 @@ void SubSamp_time(double *coordx, double *coordy,double *coordt, int *ncoord,int
     
     return;
 }
+
+/*void SubSamp_time1(double *coordx, double *coordy,double *coordt, int *ncoord,int *ntime,int *cormod,double *data,int *dist, double *maxdist,double *maxtime,int *npar,double *parcor,int *nparc,double *nuis,int *nparnuis, int *flagcor, int *flagnuis,double *vari,double *a, double *b,double *winc, double *winstp,double *block_mean,int *weigthed,int *local_wi, int *dev,double *grad)
+{
+    printf("Ok\n");
+    double beta, *gradcor;
+    double *vv,*ww,*sdata,  *sublagt;
+    double **tot,*mom_cond,**vector_mean;    //matrix moments conditions
+    double step=coordt[0]-coordt[1];  // subsampling works in the regular temporal sampling setting
+    int nsub=0, nstime=0;
+    int kk=0,h=0,i=0,p=0,q=0,r,nmat;
+    //printf("step: %f\n",step);
+    //default sub window temporal length
+    if(!(*winc))
+    {
+        beta=CorFct(cormod,0,1,parcor);
+        *winc=R_pow(2*beta/(1-R_pow(beta,2)),(double) 2/3)*R_pow(*ntime*1.5,(double)1/3);
+        if(*winc<4*step) *winc=2*step;// if the length is too small
+        if(*winc>=*ntime) *winc=*ntime-step;
+    } // if the length is too big
+    //set the spatial-temporal windows:
+    int wint = (int) *winc;
+    //printf("wint: %d\n",wint);
+    if(*winstp==0) *winstp=wint; //defualt for the forward step:the minimum distance
+    //else *winstp=*winstp*wint;   //otherwise a proportion of the temporal window
+    sublagt=(double *) R_alloc(wint, sizeof(double));
+    sublagt[0]=step;
+    sdata=(double *)  Calloc(*ncoord*wint,double);
+    //set the temporal distances for the sub-sample:
+    for(i=0;i<wint;i++)
+    {
+        sublagt[i+1]=sublagt[i]+step;nstime++;
+    }
+    nsub=floor((( (*ntime)-wint)/(wint*winstp[0])+1));
+    // vector of means for each window
+    vector_mean= (double **) Calloc(npar[0],double *);
+    for(i=0;i<npar[0];i++) vector_mean[i]=(double *) Calloc(nsub,double);
+    //start the sub-sampling procedure:
+    
+    ww=(double *) Calloc(*npar,double);
+    gradcor=(double *) Calloc(*nparc,double);
+    //grad=(double *) Calloc(*npar,double);
+    
+    for(i=0;i<nsub;i++)
+    {//loop for the number of sub-sampling:
+        mom_cond=(double *) Calloc(*npar,double);
+        // set the sub-sample of the data:
+        SetSampling_t(data,sdata,*ncoord,*ntime,wint,i);
+
+      // printf("C gradcor: %f\t%f\t%f\n\n",gradcor[0],gradcor[1],gradcor[2]);
+        scalar_time(ncoord,&nstime,sublagt,cormod,parcor,flagcor,gradcor,flagnuis,grad,npar,nuis,sdata,weigthed,maxtime,ww,mom_cond,dist,coordx,coordy,maxdist);
+        
+  
+        //printf("C: %f\t%f\t%f\t%f\n",mom_cond[0],mom_cond[1],mom_cond[2],mom_cond[3]);
+       
+        for(kk=0;kk<npar[0];kk++)
+        {
+            //Rprintf("mom_cond[kk]: %f\n",mom_cond[kk]);
+            vector_mean[kk][i]=mom_cond[kk];
+        }  //vector means for eac winndow
+        Free(mom_cond);
+        
+    }
+    
+    Free(sdata);Free(gradcor);Free(ww);
+    //Free(grad);
+    
+    tot= (double **) Calloc(npar[0],double *);
+    for(i=0;i<npar[0];i++)tot[i]=(double *) Calloc(nsub,double);
+    //mean over blocks
+    for(q=0;q<nsub ;q++)
+    {
+        for(kk=0;kk<*npar;kk++)
+        {
+            block_mean[kk]= block_mean[kk]+ vector_mean[kk][q]/nsub;
+            //printf("block_mean[kk]:%f\n",block_mean[kk]);//problema
+            
+        }
+    }
+    //if(block_mean[0]<0 ){return;}
+    for(q=0;q<nsub ;q++)
+    {
+        for(kk=0;kk<*npar;kk++)
+        {
+            tot[kk][q]=  vector_mean[kk][q]+block_mean[kk];
+            //printf("tot[kk][q]: %f\n", tot[kk][q]);//Problema
+        }
+    }
+    ////computing variance covarianmce matrix
+    nmat=0.5*npar[0]*(npar[0]-1)+npar[0];
+    vv=(double *) Calloc(nsub*nmat,double);
+    h=0;
+    for(r=0;r<nsub ;r++)
+    {
+        for(p=0;p< *npar;p++)
+        {
+            for(q=p;q< *npar;q++)
+            {
+                vv[h]=vv[h]+(tot[p][r])*(tot[q][r])/(nsub);
+                //printf("vv[h]: %f\n", vv[h]); // PROBLEMA
+                h++;
+            }
+        }
+    }
+    ////building upper triangular of the variance covarianmce matrix (summing over the matrices )
+    for(i=0;i<nmat;i++)
+    {
+        for(q=0;q<nsub ;q++)
+        {
+            vari[i]=vari[i]+vv[i+q*nmat];
+        }
+    }
+    Free(vv);
+    for(i=0;i<npar[0];i++)
+    {
+        Free(vector_mean[i]);Free(tot[i]);
+    }
+    Free(vector_mean);
+    Free(tot);
+    
+    
+    return;
+}*/
 
 /*******************************************************************************************************************************************/
 

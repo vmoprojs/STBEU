@@ -120,12 +120,15 @@ STBEUFit<-function(theta,fixed=NULL,coords,times,cc,datos,type_dist=1,
    print(optimizer)
    if(optimizer=="Nelder-Mead")
    {
+     # tiempo = proc.time()
        res=optim(par =theta,fixed=fixed,fn = eucl_st_ocl,coordx=coordx,coordy=coordy,ncoords=ncoords,
        times=times,ntime=ntime,cc=cc,datos=datos,type_dist=type_dist,maxdist= maxdist,
        maxtime=maxtime,winc_s=winc_s,winstp_s=winstp_s,winc_t=winc_t,winstp_t=winstp_t,
        weighted=weighted,type_sub=type_sub,local = local,
        GPU = GPU,control=list(fnscale=1,reltol=1e-14, maxit=10000),kernel = kernel,
        method = optimizer)
+      # tiempo = proc.time()-tiempo
+      # print(tiempo)
    }else{
        res=optim(par =theta,fixed=fixed,fn = eucl_st_ocl,coordx=coordx,coordy=coordy,ncoords=ncoords,
        times=times,ntime=ntime,cc=cc,datos=datos,type_dist=type_dist,
@@ -149,15 +152,32 @@ STBEUFit<-function(theta,fixed=NULL,coords,times,cc,datos,type_dist=1,
     if(subs==1) type_sub="SubSamp_space"
     if(subs==2) type_sub="SubSamp_time"
     if(subs==3) type_sub="SubSamp_spacetime"
-    
+
     varval <- varestfun(theta = res$par,fixed = fixed,coordx=coordx,coordy=coordy,ncoords=ncoords,
     times=times,ntime=ntime,cc=cc,datos=datos,type_dist=type_dist,maxdist= maxdist,
     maxtime=maxtime,winc_s=winc_s,winstp_s=winstp_s,winc_t=winc_t,winstp_t=winstp_t,
     weighted=weighted,type_sub=type_sub,local = c(1,1), GPU = NULL)
+    # print("I'm BACK")
+    
+    varvalHess <- varestfunHess(theta = res$par,fixed = fixed,coordx=coordx,coordy=coordy,ncoords=ncoords,
+                                times=times,ntime=ntime,cc=cc,datos=datos,type_dist=type_dist,maxdist= maxdist,
+                                maxtime=maxtime,winc_s=winc_s,winstp_s=winstp_s,winc_t=winc_t,winstp_t=winstp_t,
+                                weighted=weighted,type_sub=type_sub,local = c(1,1), GPU = NULL)
+    
+    Jaco <- numDeriv::jacobian(varestfunHess,x=res$par,fixed = fixed,coordx=coordx,coordy=coordy,ncoords=ncoords,
+                              times=times,ntime=ntime,cc=cc,datos=datos,type_dist=type_dist,maxdist= maxdist,
+                              maxtime=maxtime,winc_s=winc_s,winstp_s=winstp_s,winc_t=winc_t,winstp_t=winstp_t,
+                              weighted=weighted,type_sub=type_sub,local = c(1,1), GPU = NULL)
+    # Jaco <- xpnd(Jaco)
+    # Jaco
+    
+    # cat("\nvarvalHess: ",varvalHess,"\n")
+    # cat("\nJacobiano: ",Jaco,"\n")
+    # cat("\nvarval: ",solve(varval),"\n")
     
     res$varval <- varval
-    res$varcov <- solve(varval)
-    res$stderr <- sqrt(diag(solve(varval)))
+    res$varcov <- solve(t(Jaco)%*%solve(varval)%*%Jaco)
+    res$stderr <- sqrt(diag(res$varcov))
   }
   
   # return(list(res = res, varval = varval,varcov = solve(varval)))
@@ -232,8 +252,8 @@ eucl_st_ocl<-function(theta,fixed,coordx,coordy,ncoords,times,ntime,cc,datos,typ
   # cat("FLAGNUIS:",setup$flagnuis,"\n")
   # cat("FLAGCOR:",setup$flagcor,"\n")
   x=p$mm       #means vector
-  # cat("Means vector:",x,"\n")
-  # cat("Vari :",p$vv,"\n")
+  # cat("A. Means vector:",x,"\n")
+  # cat("A. Vari :",p$vv,"\n")
   F.1=xpnd(p$vv) #cov matrix
   Fchol = MatDecomp(F.1,"cholesky")
   if(length(Fchol)==1)
@@ -254,73 +274,4 @@ eucl_st_ocl<-function(theta,fixed,coordx,coordy,ncoords,times,ntime,cc,datos,typ
 }
 
 
-
-varestfun<-function(theta,fixed=NULL,coordx,coordy,ncoords,times,ntime,cc,datos,type_dist=1,maxdist=NULL,maxtime=NULL,
-                    winc_s=NULL,winstp_s=NULL,winc_t=NULL,winstp_t=NULL,
-                    weighted=FALSE,type_sub=NULL,local=c(1,1),GPU=NULL)
-  
-{
-  # print(theta)
-  setup=setting_param(cc,theta,fixed)
-  if(cc == 1)
-  {
-    if(setup$parcor[1] <0 | setup$parcor[2]<0 | setup$nuis[3]<0 ){
-      obj = 1e100
-      return (obj)}
-  }
-  if(cc ==2)
-  {
-    if(setup$parcor[1] <0 |setup$parcor[1] >1 | setup$parcor[2]<0 | setup$parcor[2]>1| setup$parcor[3]<=0  | setup$parcor[4]<=0 
-       | setup$parcor[5]<0 |setup$parcor[5]>1 | setup$nuis[3]<0){
-      obj = 1e100
-      return (obj)}
-  }
-  
-  # if(cc ==3)
-  # {
-  #   if(setup$parcor[4] <0 |setup$parcor[5] <0 |
-  #      setup$parcor[6] <0 |setup$parcor[6] >1 |
-  #      setup$parcor[7]<0|
-  #     setup$nuis[3]<0){
-  #     obj = 1e100
-  #     return (obj)}
-  # }
-  
-  # if(cc ==3)
-  # {
-  #   if(setup$parcor[4]<=0||setup$parcor[5]<=0 || 
-  #      setup$parcor[1]<(2.5+2*setup$parcor[7]) || setup$parcor[2]>2|| 
-  #      setup$parcor[2]<0||setup$parcor[6]<0 ||setup$parcor[6] >1|| 
-  #      setup$parcor[2]<(3.5+setup$parcor[7])||setup$parcor[7]<0 || setup$nuis[3]<0){
-  #     obj = 1e100
-  #     return (obj)}
-  # }
-  
-  if(cc ==3)
-  {
-    if(setup$parcor[4]<=0|setup$parcor[5]<=0 |
-       setup$parcor[1]<(2.5+2*setup$parcor[7]) | setup$parcor[2]!=2 |
-       setup$parcor[6]<0 |setup$parcor[6] >1|
-       setup$parcor[3]<(3.5+setup$parcor[7]) | setup$nuis[3]<0){
-      # print("cc=3!!!!")
-      obj = 1e100
-      return (obj)}
-  }
-  
-  vari=double(setup$npar*0.5*(setup$npar-1)+setup$npar) ## vector of upper  triangular cov matrix (with diagonal)
-  
-  means=double(setup$npar)                               ## vector of means
-  
-  p=.C(as.character(type_sub),as.double(coordx), as.double(coordy), as.double(times),as.integer(ncoords),
-       as.integer(ntime),as.integer(cc), as.double(datos),as.integer(type_dist),as.double(maxdist),
-       as.double(maxtime),as.integer(setup$npar),as.double(setup$parcor),as.integer(setup$nparc),
-       as.double(setup$nuis),as.integer(setup$nparnuis),as.integer(setup$flagcor),as.integer(setup$flagnuis),
-       vv=as.double(vari),as.double(winc_s), as.double(winstp_s),as.double(winc_t), as.double(winstp_t),
-       mm=as.double(means),as.integer(weighted),as.integer(local),as.integer(GPU))
-  
-  x=p$mm       #means vector
-  varval=xpnd(p$vv) #cov matrix
-  
-  return(varval)
-}
 

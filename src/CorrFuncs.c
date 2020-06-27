@@ -99,7 +99,9 @@ double wen_time(double *par, double h,double u)
 
     double arg=R_pow(1+R_pow(h/scale_s,R_power_s/2),-1/(R_power_s/2));
     double rho=R_pow(arg,R_power)*CorFunW_gen(u,R_power_t,smooth,scale_t*R_pow(arg,sep));
+    //printf("\n**** rho: %f\n",rho);
     return(rho);
+    
     //return(0.5);
 }
 
@@ -126,7 +128,7 @@ double deri_scale_s_wen_time(double *par, double h,double u)
     double delta=SQE*scale_s;
     
     double *par1;
-    par1 = (double *) Calloc(7, double); /* idem */
+    par1 = (double *) Calloc(7, double);
     // define vector par1
     par1[0]=R_power;
     par1[1]=2;
@@ -136,7 +138,32 @@ double deri_scale_s_wen_time(double *par, double h,double u)
     par1[5]=sep;
     par1[6]=smooth;
     double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
+    //printf("+++ deri_scale_s_wen_time   %f\n",grad);
+    //printf("+++ elementWise:   %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta);
     Free(par1);
+    
+    /*double paro11[7];
+    paro11[0]=par[0];
+    paro11[1]=par[1];
+    paro11[2]=par[2];
+    paro11[3]=par[3];
+    paro11[4]=par[4];
+    paro11[5]=par[5];
+    paro11[6]=par[6];
+
+    double delta=SQE*par[3];
+    
+    double paro1[7];
+    paro1[0]=par[0];
+    paro1[1]=2;
+    paro1[2]=par[2];
+    paro1[3]=par[3] + delta;
+    paro1[4]=par[4];
+    paro1[5]=par[5];
+    paro1[6]=par[6];
+    double grad=(wen_time(paro1[0],paro1[1],paro1[2],paro1[3],paro1[4],paro1[5],paro1[6],h,u)-wen_time(paro11[0],paro11[1],paro11[2],paro11[3],paro11[4],paro11[5],paro11[6],h,u))/delta;*/
+    
+    //printf("+++ deri_scale_s_wen_time   %f\n",grad);
 
     return(grad);
 }
@@ -169,6 +196,8 @@ double deri_scale_t_wen_time(double *par, double h,double u)
     par1[5]=sep;
     par1[6]=smooth;
     double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
+    //printf("+++ deri_scale_t_wen_time   %f\n",grad);
+    //printf("+++ elementWise:   %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta);
     Free(par1);
     return(grad);
     
@@ -201,6 +230,8 @@ double deri_smooth_wen_time(double *par, double h,double u)
     par1[5]=sep;
     par1[6]=smooth+ delta;
     double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
+    //printf("+++ deri_smooth_wen_time   %f\n",grad);
+    //printf("+++ elementWise:   %f %f %f\n",wen_time(par1,h,u),wen_time(par,h,u),delta);
    Free(par1);
     return(grad);
 }
@@ -242,6 +273,7 @@ double deri_sep_wen_time(double *par, double h,double u)
     par1[5]=sep+ delta;
     par1[6]=smooth;
     double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
+    //printf("+++ deri_sep_wen_time   %f\n",grad);
    Free(par1);
     return(grad);
 }
@@ -274,6 +306,7 @@ double deri_R_power_wen_time(double *par, double h,double u)
     par1[5]=sep;
     par1[6]=smooth;
     double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
+    //printf("+++ deri_R_power_wen_time   %f\n",grad);
    Free(par1);
     return(grad);
 }
@@ -306,6 +339,7 @@ double deri_R_power_t_wen_time(double *par, double h,double u)
     par1[5]=sep;
     par1[6]=smooth;
     double grad=(wen_time(par1,h,u)-wen_time(par,h,u))/delta;
+   // printf("+++ deri_R_power_t_wen_time   %f\n",grad);
     Free(par1);
     return(grad);
 }

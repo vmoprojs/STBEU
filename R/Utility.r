@@ -395,3 +395,132 @@ print.STBEUFit <- function(x,names,GPU,varest, digits = max(3, getOption("digits
   }
   cat('\n=================================================================\n')
 }
+
+
+varestfun<-function(theta,fixed=NULL,coordx,coordy,ncoords,times,ntime,cc,datos,type_dist=1,maxdist=NULL,maxtime=NULL,
+                    winc_s=NULL,winstp_s=NULL,winc_t=NULL,winstp_t=NULL,
+                    weighted=FALSE,type_sub=NULL,local=c(1,1),GPU=NULL)
+  
+{
+  # cat("\nParametros",theta,"\n")
+  setup=setting_param(cc,theta,fixed)
+  if(cc == 1)
+  {
+    if(setup$parcor[1] <0 | setup$parcor[2]<0 | setup$nuis[3]<0 ){
+      obj = 1e100
+      return (obj)}
+  }
+  if(cc ==2)
+  {
+    if(setup$parcor[1] <0 |setup$parcor[1] >1 | setup$parcor[2]<0 | setup$parcor[2]>1| setup$parcor[3]<=0  | setup$parcor[4]<=0 
+       | setup$parcor[5]<0 |setup$parcor[5]>1 | setup$nuis[3]<0){
+      obj = 1e100
+      return (obj)}
+  }
+  if(cc ==3)
+  {
+    # setup$parcor
+    if(setup$parcor[4]<=0| #scale_s
+       setup$parcor[5]<=0| #scale_t
+       setup$nuis[3]<0| #sill
+       setup$parcor[1]<0| #power2_s R_power
+       setup$parcor[2]<0| #power_s R_power_s
+       setup$parcor[6]<0| #sep
+       setup$parcor[3]<0| #power2_t R_power_t
+       setup$parcor[7]<0| #smooth_t
+       setup$parcor[7]>4| #smooth_t
+       setup$parcor[1]<(2.5+2*setup$parcor[7])
+       |setup$parcor[3]<(3.5 + setup$parcor[7])
+    ){
+      obj = 1e100
+      return (obj)}
+  }
+  
+  vari=double(setup$npar*0.5*(setup$npar-1)+setup$npar) ## vector of upper  triangular cov matrix (with diagonal)
+  grad = double(setup$npar)
+  # cat("B. flagcor:",setup$flagcor,"\n")
+  # cat("B. flagnuis:",setup$flagnuis,"\n")
+  means=double(setup$npar)                               ## vector of means
+  # print(paste(as.character(type_sub),"1",sep = ""))
+  p=.C(as.character(type_sub),as.double(coordx), as.double(coordy), as.double(times),as.integer(ncoords),
+       as.integer(ntime),as.integer(cc), as.double(datos),as.integer(type_dist),as.double(maxdist),
+       as.double(maxtime),as.integer(setup$npar),as.double(setup$parcor),as.integer(setup$nparc),
+       as.double(setup$nuis),as.integer(setup$nparnuis),as.integer(setup$flagcor),as.integer(setup$flagnuis),
+       vv=as.double(vari),as.double(winc_s), as.double(winstp_s),as.double(winc_t), as.double(winstp_t),
+       mm=as.double(means),as.integer(weighted),as.integer(local),as.integer(GPU),
+       PACKAGE='STBEU',DUP = TRUE, NAOK=TRUE)
+  
+  x=p$mm       #means vector
+  grad = p$grad
+  # cat("B. GRAD:",grad,"\n")
+  
+  # cat("B. Means vector:",x,"\n")
+  # cat("B. Vari :",xpnd(p$vv),"\n")
+  
+  # varval=solve(diag(grad)%*%solve(xpnd(p$vv))%*%diag(grad)) #cov matrix
+  varval=xpnd(p$vv)#cov matrix
+  
+  return(varval)
+}
+
+
+
+
+
+varestfunHess<-function(theta,fixed=NULL,coordx,coordy,ncoords,times,ntime,cc,datos,type_dist=1,maxdist=NULL,maxtime=NULL,
+                        winc_s=NULL,winstp_s=NULL,winc_t=NULL,winstp_t=NULL,
+                        weighted=FALSE,type_sub=NULL,local=c(1,1),GPU=NULL)
+
+{
+  # cat("\nParametros",theta,"\n")
+  setup=setting_param(cc,theta,fixed)
+  if(cc == 1)
+  {
+    if(setup$parcor[1] <0 | setup$parcor[2]<0 | setup$nuis[3]<0 ){
+      obj = 1e100
+      return (obj)}
+  }
+  if(cc ==2)
+  {
+    if(setup$parcor[1] <0 |setup$parcor[1] >1 | setup$parcor[2]<0 | setup$parcor[2]>1| setup$parcor[3]<=0  | setup$parcor[4]<=0
+       | setup$parcor[5]<0 |setup$parcor[5]>1 | setup$nuis[3]<0){
+      obj = 1e100
+      return (obj)}
+  }
+  if(cc ==3)
+  {
+    # setup$parcor
+    if(setup$parcor[4]<=0| #scale_s
+       setup$parcor[5]<=0| #scale_t
+       setup$nuis[3]<0| #sill
+       setup$parcor[1]<0| #power2_s R_power
+       setup$parcor[2]<0| #power_s R_power_s
+       setup$parcor[6]<0| #sep
+       setup$parcor[3]<0| #power2_t R_power_t
+       setup$parcor[7]<0| #smooth_t
+       setup$parcor[7]>4| #smooth_t
+       setup$parcor[1]<(2.5+2*setup$parcor[7])
+       |setup$parcor[3]<(3.5 + setup$parcor[7])
+    ){
+      obj = 1e100
+      return (obj)}
+  }
+
+  vari=double(setup$npar*0.5*(setup$npar-1)+setup$npar) ## vector of upper  triangular cov matrix (with diagonal)
+  grad = double(setup$npar)
+  means=double(setup$npar)                               ## vector of means
+  # print(paste(as.character(type_sub),"1",sep = ""))
+  p=.C(as.character(type_sub),as.double(coordx), as.double(coordy), as.double(times),as.integer(ncoords),
+       as.integer(ntime),as.integer(cc), as.double(datos),as.integer(type_dist),as.double(maxdist),
+       as.double(maxtime),as.integer(setup$npar),as.double(setup$parcor),as.integer(setup$nparc),
+       as.double(setup$nuis),as.integer(setup$nparnuis),as.integer(setup$flagcor),as.integer(setup$flagnuis),
+       vv=as.double(vari),as.double(winc_s), as.double(winstp_s),as.double(winc_t), as.double(winstp_t),
+       mm=as.double(means),as.integer(weighted),as.integer(local),as.integer(GPU),
+       PACKAGE='STBEU',DUP = TRUE, NAOK=TRUE)
+
+  x=p$mm       #means vector
+  return(x)
+}
+
+
+

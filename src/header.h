@@ -16,8 +16,12 @@
 //#define BIN_PATH "Kernel.clbin"
 
 #define EPS1 1.0e-5
-#define SQE 3.162278e-30
-//#define SQE 1e-15
+//#define SQE 3.162278e-30
+//#define SQE 0.003162278
+//1.19209e-07
+//#define SQE 3.162278e-10
+#define SQE 3.162278e-13
+
 
 #define SEP Rprintf("-----------------------------------------------------------\n")
 
@@ -116,7 +120,7 @@ double RES_deri_R_power_wen_time(double *par, double *h,double *u, double *res);
 // R_power_t:
 double deri_R_power_t_wen_time(double *par, double h,double u);
 double RES_deri_R_power_t_wen_time(double *par, double *h,double *u, double *res);
-
+//void SubSamp_time1(double *coordx, double *coordy,double *coordt, int *ncoord,int *ntime,int *cormod,double *data,int *dist, double *maxdist,double *maxtime,int *npar,double *parcor,int *nparc,double *nuis,int *nparnuis, int *flagcor, int *flagnuis,double *vari,double *a, double *b,double *winc, double *winstp,double *block_mean,int *weigthed,int *local_wi, int *dev,double *grad);
 
 /* END DERIVATIVES Wendland covariance */
 
