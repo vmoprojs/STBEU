@@ -15,12 +15,26 @@
 #define MAX_SOURCE_SIZE (0x100000)
 //#define BIN_PATH "Kernel.clbin"
 
-#define EPS1 1.0e-5
+//#define EPS1 1.0e-5
+#define EPS1 DBL_EPSILON
+//#define SQE sqrt(DBL_EPSILON)
+#define SQE sqrt(1.0e-25) //sqrt(1.0e-25) equivalnte a SUPER
 //#define SQE 3.162278e-30
+//#define SQE 3.162278e-13 // SUPER 1
+
+//#define SQE 0.00000001490116119384765625
+//#define SQE 10e-8
+//#define SQE 0x1.ad7f29abcaf48p-24
 //#define SQE 0.003162278
 //1.19209e-07
-//#define SQE 3.162278e-10
-#define SQE 3.162278e-13
+//#define SQE 3.162278e-12
+//#define SQE 1.0e-15
+#define SQE1 3.162278e-13 // ESTE ES EL BUENO
+
+
+
+//#define SQE 3.162278e-14
+//#define SQE 0.003162278
 
 
 #define SEP Rprintf("-----------------------------------------------------------\n")
@@ -38,7 +52,8 @@
 //---------START DECLARING FUNCTIONS-----------
 void CorFct_call(int *cormod, double *h, double *u, double *par,double *res);
 void Grad_Pair_Gauss(double rho, int *flag, double *gradcor, double *grad,
-                     int *npar, double *par, double u, double v);
+                     int *npar, double *par, double u, double v,
+                     int *cormod,double lags,double lagt,int *flagcor, int *nparcT ,double * parcor);
 double DGneiting_sep(double h,double u, double power_s,double power_t,double scale_s,double scale_t,double sep);
 double DGneiting_pw_s(double h,double u, double power_s,double power_t,double scale_s,double scale_t,double sep);
 double DGneiting_pw_t(double h,double u, double power_s,double power_t,double scale_s,double scale_t,double sep);
@@ -58,13 +73,13 @@ int is_equal(double val1, double val2);
 void SeqStep(double *x, int len, double step, double *res);
 void SetSampling_s(int ncoord,int ntime,double *coordx, double *coordy, double *data, int *npts,double *scoordx, double *scoordy, double *sdata, double xmax,double xmin, double ymax,double ymin);
 void SetSampling_t(double *data,double *sdata,int ncoord,int ntime,int wint,int k);
-void scalar_space(int *npts, int *ntime,double *coordt, double *maxtime,double *maxdist,int *cormod, double *parcor,int *flagcor,int *flagnuis,int *npar,double *nuis,double *sdata,int *weigthed, double *mom_cond, int *dist, double *scoordx,double *scoordy,double *gradcor,double  *grad, double *ww );
+void scalar_space(int *npts, int *ntime,double *coordt, double *maxtime,double *maxdist,int *cormod, double *parcor,int *flagcor,int *flagnuis,int *npar,double *nuis,double *sdata,int *weigthed, double *mom_cond, int *dist, double *scoordx,double *scoordy,double *gradcor,double  *grad, double *ww , int *nparcT);
 void SubSamp_space(double *coordx, double *coordy,double *coordt, int *ncoord,int *ntime,int *cormod,double *data,int *dist, double *maxdist,double *maxtime,int *npar,double *parcor,int *nparc,double *nuis,int *nparnuis, int *flagcor, int *flagnuis,double *vari,double *winc, double *winstp,double *a, double *b,double *block_mean,int *weigthed, int *local_wi, int *dev);
 
-void scalar_time(int *ncoord,int *nstime,double *sublagt,int *cormod,double *parcor,int *flagcor, double *gradcor,int *flagnuis, double *grad,int *npar,double *nuis, double *sdata,int *weigthed,double *maxtime, double *ww, double *mom_cond,int *dist, double *coordx, double *coordy,double *maxdist);
+void scalar_time(int *ncoord,int *nstime,double *sublagt,int *cormod,double *parcor,int *flagcor, double *gradcor,int *flagnuis, double *grad,int *npar,double *nuis, double *sdata,int *weigthed,double *maxtime, double *ww, double *mom_cond,int *dist, double *coordx, double *coordy,double *maxdist, int *nparcT);
 void SubSamp_time(double *coordx, double *coordy,double *coordt, int *ncoord,int *ntime,int *cormod,double *data,int *dist, double *maxdist,double *maxtime,int *npar,double *parcor,int *nparc,double *nuis,int *nparnuis, int *flagcor, int *flagnuis,double *vari,double *a, double *b,double *winc, double *winstp,double *block_mean,int *weigthed, int *local_wi, int *dev);
 
-void scalar_spacetime(int *npts,int *nstime,double *sublagt,double *maxtime,int *cormod,double *parcor,int *flagcor, double *gradcor,int *flagnuis, double *grad,int *npar,double *nuis,double *s2data,int *weigthed, double *ww, double *mom_cond,double *maxdist,int *dist, double *scoordx, double *scoordy);
+void scalar_spacetime(int *npts,int *nstime,double *sublagt,double *maxtime,int *cormod,double *parcor,int *flagcor, double *gradcor,int *flagnuis, double *grad,int *npar,double *nuis,double *s2data,int *weigthed, double *ww, double *mom_cond,double *maxdist,int *dist, double *scoordx, double *scoordy, int *nparcT);
 void SubSamp_spacetime(double *coordx, double *coordy,double *coordt, int *ncoord,int *ntime,int *cormod,double *data,int *dist, double *maxdist,double *maxtime,int *npar,double *parcor,int *nparc,double *nuis,int *nparnuis, int *flagcor, int *flagnuis,double *vari,double *winc, double *winstp,double *winc_t, double *winstp_t,double *block_mean,int *weigthed, int *local_wi, int *dev);
 
 
@@ -124,19 +139,37 @@ double RES_deri_R_power_t_wen_time(double *par, double *h,double *u, double *res
 
 /* END DERIVATIVES Wendland covariance */
 
+double log_biv_Norm(double corr,double zi,double zj,double mi,double mj,double vari, double nugget);
 
 //---------END WENDLAND FUNCTIONS-----------
 
 
+void SubSamp_space_v(double *coordx, double *coordy,double *coordt, int *ncoord,int *ntime,int *cormod,double *data,int *dist, double *maxdist,double *maxtime,int *npar,double *parcor,int *nparc,double *nuis,int *nparnuis, int *flagcor, int *flagnuis,double *vari,double *winc, double *winstp,double *a, double *b,double *block_mean,int *weigthed, int *local_wi, int *dev);
 
+void scalar_space_v(int *npts, int *ntime,double *coordt, double *maxtime,double *maxdist,int *cormod, double *parcor,int *flagcor,int *flagnuis,int *npar,double *nuis,double *sdata,int *weigthed, double *mom_cond, int *dist, double *scoordx,double *scoordy,double *gradcor,double  *grad, double *ww , int *nparcT);
 
+double CorFct_v(int *cormod, double h, double u, double *par);
 
+void GradCorrFct_v(double rho, int *cormod, int *flag,
+                   double *grad, double h, double u,double *par);
 
+double deri_scale_s_wen_time_v(double *par, double h,double u);
 
+double deri_scale_t_wen_time_v(double *par, double h,double u);
 
+double deri_smooth_wen_time_v(double *par, double h,double u);
 
+double deri_sill_wen_time_v(double *par, double h,double u);
 
+double deri_sep_wen_time_v(double *par, double h,double u);
 
+double deri_R_power_wen_time_v(double *par, double h,double u);
+
+double deri_R_power_t_wen_time_v(double *par, double h,double u);
+
+void Grad_Pair_Gauss_v(double rho, int *flag, double *gradcor, double *grad,
+int *npar, double *par, double u, double v,
+                       int *cormod,double lags,double lagt,int *flagcor, int *nparcT,double *parcor);
 
 /*----------------------------------------------------------------
  File name: Host.c

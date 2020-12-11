@@ -816,8 +816,18 @@ void Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2,double *gradcor
 }
 
 #define EPS1 1.0e-40
-#define SQE 3.162278e-30
+//#define SQE 3.162278e-30
+#define SQE sqrt(DBL_EPSILON)
+//#define SQE 1.490116e-08
+//#define SQE sqrt(2.2204460492503131E-5)
+//#define SQE 1.4901161193847656e-08
+//#define SQE 0.00000001490116119384765625
+//#define SQE 10e-8
+//#define SQE 0x1.ad7f29abcaf48p-24
+//long double SQE 1.4901161193847656e-08
 //#define SQE 1.0e-15
+//#define SQE 3.162278e-13 // ESTE ES EL BUENO
+//#define SQE 0x1.ad7f29abcaf48p-24
 
 
 //---------START WENDLAND FUNCTIONS-----------
@@ -834,6 +844,7 @@ void Grad_Pair_Gauss(double rho, int flag0, int flag1, int flag2,double *gradcor
 // SCALE_S:
 double deri_scale_s_wen_time(double par0,double par1,double par2,double par3,double par4,double par5,double par6, double h,double u)
 {
+    //double SQE =pow(10,-8)
     double paro11[7];
     paro11[0]=par0;
     paro11[1]=par1;
@@ -844,6 +855,7 @@ double deri_scale_s_wen_time(double par0,double par1,double par2,double par3,dou
     paro11[6]=par6;
 
     double delta=SQE*par3;
+    //double delta=(10e-8)*par3;
     
     double paro1[7];
     paro1[0]=par0;
@@ -862,6 +874,7 @@ double deri_scale_s_wen_time(double par0,double par1,double par2,double par3,dou
 // SCALE_T:
 double deri_scale_t_wen_time(double par0,double par1,double par2,double par3,double par4,double par5,double par6, double h,double u)
 {
+    //double SQE =pow(10,-8)
     double paro11[7];
     paro11[0]=par0;
     paro11[1]=par1;
@@ -875,6 +888,8 @@ double deri_scale_t_wen_time(double par0,double par1,double par2,double par3,dou
     
     //double delta=sqrt(EPS1)*par4;
     double delta=SQE*par4;
+    //double delta=(10e-8)*par4;
+    
     
     double paro1[7];
     paro1[0]=par0;
@@ -898,6 +913,7 @@ double deri_scale_t_wen_time(double par0,double par1,double par2,double par3,dou
 // SMOOTH:
 double deri_smooth_wen_time(double par0,double par1,double par2,double par3,double par4,double par5,double par6, double h,double u)
 {
+    //double SQE =pow(10,-8)
     double paro11[7];
     paro11[0]=par0;
     paro11[1]=par1;
@@ -911,6 +927,7 @@ double deri_smooth_wen_time(double par0,double par1,double par2,double par3,doub
     
     //double delta=sqrt(EPS1)*par6;
     double delta=SQE*par6;
+    //double delta=(10e-8)*par6;
     
     double paro1[7];
     paro1[0]=par0;
@@ -932,6 +949,7 @@ double deri_smooth_wen_time(double par0,double par1,double par2,double par3,doub
 // SEP:
 double deri_sep_wen_time(double par0,double par1,double par2,double par3,double par4,double par5,double par6, double h,double u)
 {
+    //double SQE =pow(10,-8)
     double paro11[7];
     paro11[0]=par0;
     paro11[1]=par1;
@@ -945,6 +963,7 @@ double deri_sep_wen_time(double par0,double par1,double par2,double par3,double 
     
     //double delta=sqrt(EPS1)*par5;
     double delta=SQE*par5;
+    //double delta=(10e-8)*par5;
     
     double paro1[7];
     paro1[0]=par0;
@@ -967,6 +986,7 @@ double deri_sep_wen_time(double par0,double par1,double par2,double par3,double 
 // R_power:
 double deri_R_power_wen_time(double par0,double par1,double par2,double par3,double par4,double par5,double par6, double h,double u)
 {
+    //double SQE =pow(10,-8)
     double paro11[7];
     paro11[0]=par0;
     paro11[1]=par1;
@@ -980,6 +1000,7 @@ double deri_R_power_wen_time(double par0,double par1,double par2,double par3,dou
     
     //double delta=sqrt(EPS1)*par0;
     double delta=SQE*par0;
+    //double delta=(10e-8)*par0;
     
     double paro1[7];
     paro1[0]=par0+ delta;
@@ -1002,6 +1023,7 @@ double deri_R_power_wen_time(double par0,double par1,double par2,double par3,dou
 // R_power_t:
 double deri_R_power_t_wen_time(double par0,double par1,double par2,double par3,double par4,double par5,double par6, double h,double u)
 {
+    //double SQE =pow(10,-8)
     double paro11[7];
     paro11[0]=par0;
     paro11[1]=par1;
@@ -1015,6 +1037,7 @@ double deri_R_power_t_wen_time(double par0,double par1,double par2,double par3,d
     
    // double delta=sqrt(EPS1)*par2;
     double delta=SQE*par2;
+    //double delta=(10e-8)*par2;
     
     double paro1[7];
     paro1[0]=par0;
@@ -1170,7 +1193,7 @@ double CorFct(double h, double u, double par0,double par1,double par2,double par
 
 __kernel void scalarspaceocl(__global const double *coordt,__global const double *scoordx,__global const double *scoordy, __global const double *sdata, __global double *mom_cond0,__global double *mom_cond1,__global double *mom_cond2,__global double *mom_cond3,__global const int *int_par,__global const double *dou_par)
 {
-    
+    //printf("Hola\n");
     int npts	=   int_par[0];
     int ntime	=   int_par[1];
     int flagcor0	=   int_par[2];

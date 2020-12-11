@@ -11,7 +11,7 @@ void SubSamp_space_ocl(double *coordx, double *coordy,double *coordt, int *ncoor
     int *npts, numintx=0, numinty=0;
     int n_win=0,kk=0,h=0,i=0,nsub,j=0,p=0,q=0,r,nmat;
     
-    
+    //Rprintf("\nA. BIEN! \n");
     
     npts=(int *) R_alloc(1, sizeof(int));          //number of location sites in the subwindow
     rangex=(double *) R_alloc(2, sizeof(double));
@@ -30,11 +30,15 @@ void SubSamp_space_ocl(double *coordx, double *coordy,double *coordt, int *ncoor
     
     //Rprintf("A. MIERDAAA\n");
     
+
+    
     if(!winc[0])
     {
         delta=fmin(deltax,deltay);  // I set this rule if no constant
         winc[0]=sqrt(delta)/2;
     }
+    
+    
     if(!winstp[0]) winstp[0]=0.5;   //proportion of the overlapping  0< winstp <=1, If winstp=0 then  winstp=0.5
     //Rprintf("%f\n",winstp[0]);
     dimwinx=winc[0] * sqrt(deltax);// sub-window x length depends on a constant: deafault??
@@ -45,11 +49,16 @@ void SubSamp_space_ocl(double *coordx, double *coordy,double *coordt, int *ncoor
     numintx=floor((deltax-dimwinx)/(winstx)+1);   //number of overlapping sub-windows is  numintx+1 * numinty+1
     numinty=floor((deltay-dimwiny)/(winsty)+1);
     
+    //printf("\n\n\n winc[0]: %f,winc[1]: %f,winstp[0]: %f,numintx %d, numinty %d, deltax %f, deltay %f, winstx %f, winsty %f, dimwinx: %f, dimwiny: %f\n\n\n",winc[0],winc[1],winstp[0],numintx,numinty,deltax,deltay,winstx,winsty,dimwinx,dimwiny);
+    
     xgrid=(double *) R_alloc(numintx, sizeof(double));
     ygrid=(double *) R_alloc(numinty, sizeof(double));
     
+    
     SeqStep(rangex,numintx,winstx,xgrid);
     SeqStep(rangey,numinty,winsty,ygrid);
+    
+    //printf("\n\n\n  winc[0]: %f   winc[1]: %f   winstp[0]: %f\n\n\n",winc[0],winc[1],winstp[0]);
     
     // matrix of means (one for each window)
     
@@ -59,13 +68,16 @@ void SubSamp_space_ocl(double *coordx, double *coordy,double *coordt, int *ncoor
         vector_mean[i]=(double *) Calloc((numintx+1)*(numinty+1),double);
     }
     
+  
+    
     ww=(double *) Calloc(npar[0],double);
     gradcor=(double *) Calloc(nparc[0],double);
     grad=(double *) Calloc(npar[0],double);
     
     nsub=0;
     n_win=numintx*numinty;   //// number of windows
-    
+
+   // Rprintf("B. BIEN! \n");
     for(i=0;i<=numintx;i++)
     {
         for(j=0;j<=numinty;j++)
@@ -76,6 +88,7 @@ void SubSamp_space_ocl(double *coordx, double *coordy,double *coordt, int *ncoor
             //  scoordx    scoordy are the spatial coords of the subwindow
             // sdata the associated data
             // npts number of loc sites in the window
+            //if(npts[0]<=5){printf("STOP: Number of locations in the block must be lager: npts: %d\n",npts[0]);}
             if( (((xgrid[i]+dimwinx)<rangex[1])||is_equal(xgrid[i]+dimwinx,rangex[1]))&&     //excludin "half" windows
                (((ygrid[j]+dimwiny))<rangey[1]||is_equal(ygrid[j]+dimwiny,rangey[1]))&&       //and windows with few loc sites
                (npts[0]>5))
@@ -119,6 +132,7 @@ void SubSamp_space_ocl(double *coordx, double *coordy,double *coordt, int *ncoor
         for(kk=0;kk<npar[0];kk++)
         {
             block_mean[kk]= block_mean[kk]+ vector_mean[kk][q]/n_win;
+           // printf("block_mean[kk]: %f\n",block_mean[kk]);
         }
     }
     for(q=0;q<n_win ;q++)
@@ -126,6 +140,7 @@ void SubSamp_space_ocl(double *coordx, double *coordy,double *coordt, int *ncoor
         for(kk=0;kk<npar[0];kk++)
         {
             tot[kk][q]=  vector_mean[kk][q]+block_mean[kk];
+            
         }
     }
     ////computing variance covarianmce matrix
@@ -139,6 +154,7 @@ void SubSamp_space_ocl(double *coordx, double *coordy,double *coordt, int *ncoor
             for(q=p;q< npar[0];q++)
             {
                 vv[h]=vv[h]+(tot[p][r])*(tot[q][r])/(n_win);
+                
                 h++;
             }
         }
@@ -158,7 +174,7 @@ void SubSamp_space_ocl(double *coordx, double *coordy,double *coordt, int *ncoor
     }
     Free(vector_mean);
     Free(tot);
-    
+    //Rprintf("C. BIEN!\n");
     return;
 }
 

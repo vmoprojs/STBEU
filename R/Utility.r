@@ -381,7 +381,7 @@ print.STBEUFit <- function(x,names,GPU,varest, digits = max(3, getOption("digits
   if(is.null(names)) {cat('\n Parameters (order of theta)\n',x$par)} else
   {
     res = x$par;names(res) = names
-    cat('\nParameters:\n')
+    cat('\n')
     print.default(res)
     if(varest)
     {
@@ -420,17 +420,23 @@ varestfun<-function(theta,fixed=NULL,coordx,coordy,ncoords,times,ntime,cc,datos,
   if(cc ==3)
   {
     # setup$parcor
-    if(setup$parcor[4]<=0| #scale_s
-       setup$parcor[5]<=0| #scale_t
-       setup$nuis[3]<0| #sill
-       setup$parcor[1]<0| #power2_s R_power
-       setup$parcor[2]<0| #power_s R_power_s
-       setup$parcor[6]<0| #sep
-       setup$parcor[3]<0| #power2_t R_power_t
-       setup$parcor[7]<0| #smooth_t
-       setup$parcor[7]>4| #smooth_t
-       setup$parcor[1]<(2.5+2*setup$parcor[7])
-       |setup$parcor[3]<(3.5 + setup$parcor[7])
+    if(
+    setup$parcor[4]<=0| #scale_s
+    setup$parcor[5]<=0| #scale_t
+    setup$nuis[3]<=0| #sill
+    # setup$parcor[1]<0| #power2_s R_power
+    setup$parcor[2]<=0| #power_s R_power_s
+    setup$parcor[6]<0| #sep
+    setup$parcor[6]>1| #sep
+    setup$parcor[3]<0| #power2_t R_power_t
+    setup$parcor[7]<0| #smooth_t
+    setup$parcor[7]>4| #smooth_t
+    setup$nuis[2]<0| #nugget
+    setup$nuis[2]>=1| #nugget
+    setup$parcor[1]<=0 |#power2_s <smooth_t
+    setup$parcor[3]<=0 | #power2_t <smooth_t
+    setup$parcor[1]<(2.5+2*setup$parcor[7]) |#power2_s <smooth_t
+    setup$parcor[3]<(3.5 + setup$parcor[7])#power2_t <smooth_t
     ){
       obj = 1e100
       return (obj)}
@@ -456,6 +462,7 @@ varestfun<-function(theta,fixed=NULL,coordx,coordy,ncoords,times,ntime,cc,datos,
   
   # cat("B. Means vector:",x,"\n")
   # cat("B. Vari :",xpnd(p$vv),"\n")
+  # cat("B. xpnd(p$vv) :",xpnd(p$vv),"\n")
   
   # varval=solve(diag(grad)%*%solve(xpnd(p$vv))%*%diag(grad)) #cov matrix
   varval=xpnd(p$vv)#cov matrix
@@ -489,18 +496,23 @@ varestfunHess<-function(theta,fixed=NULL,coordx,coordy,ncoords,times,ntime,cc,da
   }
   if(cc ==3)
   {
-    # setup$parcor
-    if(setup$parcor[4]<=0| #scale_s
-       setup$parcor[5]<=0| #scale_t
-       setup$nuis[3]<0| #sill
-       setup$parcor[1]<0| #power2_s R_power
-       setup$parcor[2]<0| #power_s R_power_s
-       setup$parcor[6]<0| #sep
-       setup$parcor[3]<0| #power2_t R_power_t
-       setup$parcor[7]<0| #smooth_t
-       setup$parcor[7]>4| #smooth_t
-       setup$parcor[1]<(2.5+2*setup$parcor[7])
-       |setup$parcor[3]<(3.5 + setup$parcor[7])
+       if(
+    setup$parcor[4]<=0| #scale_s
+    setup$parcor[5]<=0| #scale_t
+    setup$nuis[3]<=0| #sill
+    # setup$parcor[1]<0| #power2_s R_power
+    setup$parcor[2]<=0| #power_s R_power_s
+    setup$parcor[6]<0| #sep
+    setup$parcor[6]>1| #sep
+    setup$parcor[3]<0| #power2_t R_power_t
+    setup$parcor[7]<0| #smooth_t
+    setup$parcor[7]>4| #smooth_t
+    setup$nuis[2]<0| #nugget
+    setup$nuis[2]>=1| #nugget
+    setup$parcor[1]<=0 |#power2_s <smooth_t
+    setup$parcor[3]<=0 | #power2_t <smooth_t
+    setup$parcor[1]<(2.5+2*setup$parcor[7]) |#power2_s <smooth_t
+    setup$parcor[3]<(3.5 + setup$parcor[7])#power2_t <smooth_t
     ){
       obj = 1e100
       return (obj)}

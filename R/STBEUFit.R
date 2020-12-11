@@ -12,7 +12,7 @@
 STBEUFit<-function(theta,fixed=NULL,coords,times,cc,datos,type_dist=1,
                    maxdist=NULL,maxtime=NULL, winc_s=NULL,winstp_s=NULL,
                    winc_t=NULL,winstp_t=NULL,subs=NULL,weighted=FALSE,
-                   local=c(1,1),GPU=NULL,varest = FALSE,optimizer = "Nelder-Mead")             
+                   local=c(1,1),GPU=NULL,varest = FALSE,optimizer = "Nelder-Mead",lower = NULL, upper = NULL)
 {
     
   path.parent <- getwd()
@@ -121,27 +121,66 @@ STBEUFit<-function(theta,fixed=NULL,coords,times,cc,datos,type_dist=1,
    if(optimizer=="Nelder-Mead")
    {
      # tiempo = proc.time()
+     #cat("Parametros: ",unlist(theta),"\n")
+     
        res=optim(par =theta,fixed=fixed,fn = eucl_st_ocl,coordx=coordx,coordy=coordy,ncoords=ncoords,
        times=times,ntime=ntime,cc=cc,datos=datos,type_dist=type_dist,maxdist= maxdist,
        maxtime=maxtime,winc_s=winc_s,winstp_s=winstp_s,winc_t=winc_t,winstp_t=winstp_t,
        weighted=weighted,type_sub=type_sub,local = local,
-       GPU = GPU,control=list(fnscale=1,reltol=1e-14, maxit=10000),kernel = kernel,
+       GPU = GPU,control=list(fnscale=1,reltol=1e-14, maxit=500000),kernel = kernel,
        method = optimizer)
       # tiempo = proc.time()-tiempo
       # print(tiempo)
-   }else{
+   }
+   
+   #else{
+   #    res=optim(par =theta,fixed=fixed,fn = #eucl_st_ocl,coordx=coordx,coordy=coordy,ncoords=ncoords,
+       #times=times,ntime=ntime,cc=cc,datos=datos,type_dist=type_dist,
+       #maxdist= maxdist,maxtime=maxtime,winc_s=winc_s,winstp_s=winstp_s,
+       #winc_t=winc_t,winstp_t=winstp_t,
+      #weighted=weighted,type_sub=type_sub,local = local,
+      #         GPU = GPU,control=list(fnscale=1,factr=1e-10,
+      #         reltol=1e-14, maxit=10000),kernel = kernel,
+      #         method = optimizer)
+   #}
+   
+   if(optimizer=="nlminb")
+   {
+     # tiempo = proc.time()
+     #cat("Parametros: ",unlist(theta),"\n")
+     
+    res=nlminb(objective=eucl_st_ocl,start =theta,
+       control = list( iter.max=500000),
+       lower=lower,upper=upper,
+       fixed=fixed,coordx=coordx,coordy=coordy,ncoords=ncoords,
+       times=times,ntime=ntime,cc=cc,datos=datos,type_dist=type_dist,maxdist= maxdist,
+       maxtime=maxtime,winc_s=winc_s,winstp_s=winstp_s,winc_t=winc_t,winstp_t=winstp_t,
+       weighted=weighted,type_sub=type_sub,local = local,
+       GPU = GPU,kernel = kernel
+       
+       )
+       #print(res$objective)
+      # tiempo = proc.time()-tiempo
+      # print(tiempo)
+   }
+   
+   if(optimizer=="L-BFGS-B")
+   {
+     # tiempo = proc.time()
+     #cat("Parametros: ",unlist(theta),"\n")
+     
        res=optim(par =theta,fixed=fixed,fn = eucl_st_ocl,coordx=coordx,coordy=coordy,ncoords=ncoords,
-       times=times,ntime=ntime,cc=cc,datos=datos,type_dist=type_dist,
-       maxdist= maxdist,maxtime=maxtime,winc_s=winc_s,winstp_s=winstp_s,
-       winc_t=winc_t,winstp_t=winstp_t,
-      weighted=weighted,type_sub=type_sub,local = local,
-               GPU = GPU,control=list(fnscale=1,factr=1e-10,
-               reltol=1e-14, maxit=10000),kernel = kernel,
-               method = optimizer)
+       times=times,ntime=ntime,cc=cc,datos=datos,type_dist=type_dist,maxdist= maxdist,
+       maxtime=maxtime,winc_s=winc_s,winstp_s=winstp_s,winc_t=winc_t,winstp_t=winstp_t,
+       weighted=weighted,type_sub=type_sub,local = local,
+       GPU = GPU,control=list(fnscale=1,pgtol=1e-14, maxit=50000),kernel = kernel,
+       method = optimizer,lower=lower,upper=upper)
+      # tiempo = proc.time()-tiempo
+      # print(tiempo)
    }
             
     
-# print("TERMINAAAAA")
+#print("TERMINAAAAA")
   # on.exit(rm(res))
   
   names = checkpar(fix=fixed,theta=theta,cc=cc)
@@ -149,9 +188,12 @@ STBEUFit<-function(theta,fixed=NULL,coords,times,cc,datos,type_dist=1,
   
   if(varest==TRUE)
   {
-    if(subs==1) type_sub="SubSamp_space"
+    if(subs==1) type_sub="SubSamp_space" #SubSamp_space_v
     if(subs==2) type_sub="SubSamp_time"
     if(subs==3) type_sub="SubSamp_spacetime"
+    # type_sub="SubSamp_spacetime"
+    # print("Vamo!-----")
+    print(res$par)
 
     varval <- varestfun(theta = res$par,fixed = fixed,coordx=coordx,coordy=coordy,ncoords=ncoords,
     times=times,ntime=ntime,cc=cc,datos=datos,type_dist=type_dist,maxdist= maxdist,
@@ -167,17 +209,25 @@ STBEUFit<-function(theta,fixed=NULL,coords,times,cc,datos,type_dist=1,
     Jaco <- numDeriv::jacobian(varestfunHess,x=res$par,fixed = fixed,coordx=coordx,coordy=coordy,ncoords=ncoords,
                               times=times,ntime=ntime,cc=cc,datos=datos,type_dist=type_dist,maxdist= maxdist,
                               maxtime=maxtime,winc_s=winc_s,winstp_s=winstp_s,winc_t=winc_t,winstp_t=winstp_t,
-                              weighted=weighted,type_sub=type_sub,local = c(1,1), GPU = NULL)
+                              weighted=weighted,type_sub=type_sub,local = c(1,1), GPU = NULL,method.args=list(eps=1.490116e-08))
     # Jaco <- xpnd(Jaco)
     # Jaco
+    # 
+    #cat("\nvarval: ","\n")
+    #print(varval)
+    #cat("\nJacobiano: ","\n")
+    #print(Jaco)
+    #cat("\nMatInv(varval): ","\n")
+    #print(MatInv(varval,"cholesky"))
+    #cat("\nsolve(varval): ","\n")
+    #print(solve(varval))
     
-    # cat("\nvarvalHess: ",varvalHess,"\n")
-    # cat("\nJacobiano: ",Jaco,"\n")
-    # cat("\nvarval: ",solve(varval),"\n")
     
     res$varval <- varval
+    # res$varcov <- solve(t(Jaco)%*%MatInv(varval,"cholesky")%*%Jaco)
     res$varcov <- solve(t(Jaco)%*%solve(varval)%*%Jaco)
     res$stderr <- sqrt(diag(res$varcov))
+    names(res$stderr) <- names(res$par)
   }
   
   # return(list(res = res, varval = varval,varcov = solve(varval)))
@@ -193,6 +243,8 @@ eucl_st_ocl<-function(theta,fixed,coordx,coordy,ncoords,times,ntime,cc,datos,typ
                       weighted,type_sub,local,GPU,kernel)
   
 {
+    # cat("Parametros: ",theta,"\n")
+    
   setup=setting_param(cc,theta,fixed)
   
   if(cc == 1)
@@ -217,17 +269,24 @@ eucl_st_ocl<-function(theta,fixed,coordx,coordy,ncoords,times,ntime,cc,datos,typ
   if(cc ==3)
   {
     # setup$parcor
-    if(setup$parcor[4]<=0| #scale_s
+    # cat("setup$parcor",setup$parcor,"\n")
+    if(
+      setup$parcor[4]<=0| #scale_s
        setup$parcor[5]<=0| #scale_t
-       setup$nuis[3]<0| #sill
-       setup$parcor[1]<0| #power2_s R_power
-       setup$parcor[2]<0| #power_s R_power_s
+       setup$nuis[3]<=0| #sill
+       # setup$parcor[1]<0| #power2_s R_power
+       setup$parcor[2]<=0| #power_s R_power_s
        setup$parcor[6]<0| #sep
+       setup$parcor[6]>1| #sep
        setup$parcor[3]<0| #power2_t R_power_t
        setup$parcor[7]<0| #smooth_t
        setup$parcor[7]>4| #smooth_t
-       setup$parcor[1]<(2.5+2*setup$parcor[7])
-       |setup$parcor[3]<(3.5 + setup$parcor[7])
+       setup$nuis[2]<0| #nugget
+       setup$nuis[2]>=1| #nugget
+       setup$parcor[1]<=0 |#power2_s <smooth_t
+       setup$parcor[3]<=0 | #power2_t <smooth_t
+       setup$parcor[1]<(2.5+2*setup$parcor[7]) |#power2_s <smooth_t
+       setup$parcor[3]<(3.5 + setup$parcor[7])#power2_t <smooth_t
        ){
       obj = 1e100
       return (obj)}
@@ -248,13 +307,15 @@ eucl_st_ocl<-function(theta,fixed,coordx,coordy,ncoords,times,ntime,cc,datos,typ
   # print(str(p))
   # print("OUT++INSIDE")
   # print("Vamo despues de")
-  #cat("Parameters:",p$vaina,"\n")
+  # cat("Parameters:",p$vaina,"\n")
   # cat("FLAGNUIS:",setup$flagnuis,"\n")
   # cat("FLAGCOR:",setup$flagcor,"\n")
   x=p$mm       #means vector
-  # cat("A. Means vector:",x,"\n")
-  # cat("A. Vari :",p$vv,"\n")
+  #cat("A. Means vector--------:",x,"\n")
+  #cat("A. Vari :",p$vv,"\n")
   F.1=xpnd(p$vv) #cov matrix
+  # cat("A. F.1 :",p$vv,"\n")
+  # print(F.1)
   Fchol = MatDecomp(F.1,"cholesky")
   if(length(Fchol)==1)
   {
